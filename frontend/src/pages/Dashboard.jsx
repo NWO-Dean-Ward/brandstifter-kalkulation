@@ -129,7 +129,7 @@ export default function Dashboard() {
                     {p.angebotspreis ? euro(p.angebotspreis) : '-'}
                   </td>
                   <td className="px-5 py-3 text-right text-sm text-slate-600">
-                    {p.marge_prozent ? `${(p.marge_prozent * 100).toFixed(1)}%` : '-'}
+                    {p.marge_prozent ? `${p.marge_prozent.toFixed(1)}%` : '-'}
                   </td>
                   <td className="px-5 py-3 text-right">
                     <button

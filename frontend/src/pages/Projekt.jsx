@@ -283,7 +283,7 @@ function KalkUebersicht({ kalk, projekt }) {
           <div className="text-sm text-slate-500 mt-1">Angebotspreis (netto)</div>
           {data.marge_prozent > 0 && (
             <div className="text-sm text-green-600 mt-2 font-medium">
-              Marge: {(data.marge_prozent * 100).toFixed(1)}%
+              Marge: {data.marge_prozent.toFixed(1)}%
             </div>
           )}
         </div>

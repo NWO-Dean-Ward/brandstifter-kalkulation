@@ -246,10 +246,13 @@ async def sb_csv_upload(
     if not datei.filename or not datei.filename.lower().endswith(".csv"):
         raise HTTPException(status_code=400, detail="Nur CSV-Dateien erlaubt")
 
-    # In Import-Verzeichnis speichern
+    # In Import-Verzeichnis speichern (Dateiname sanitizen gegen Path Traversal)
     import_dir = Path("data/sb_import")
     import_dir.mkdir(parents=True, exist_ok=True)
-    ziel = import_dir / datei.filename
+    safe_name = Path(datei.filename).name  # Nur Dateiname, kein Pfad
+    if not safe_name or safe_name.startswith("."):
+        raise HTTPException(status_code=400, detail="Ungueltiger Dateiname")
+    ziel = import_dir / safe_name
     content = await datei.read()
     with open(str(ziel), "wb") as f:
         f.write(content)
