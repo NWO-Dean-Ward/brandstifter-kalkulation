@@ -1,0 +1,30 @@
+# Backend
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+python-multipart==0.0.20
+
+# Datenbank
+aiosqlite==0.20.0
+
+# GAEB
+lxml==5.3.0
+
+# PDF
+reportlab==4.2.5
+pdfplumber==0.11.4
+
+# Excel
+openpyxl==3.1.5
+
+# Config
+pyyaml==6.0.2
+
+# HTTP Client (Schreiner's Büro API)
+httpx==0.28.1
+
+# KI (optional, für Lern-Agent)
+anthropic==0.43.0
+
+# Tests
+pytest==8.3.4
+pytest-asyncio==0.25.0

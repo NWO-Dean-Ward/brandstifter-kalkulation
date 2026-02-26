@@ -1,0 +1,6 @@
+einheitlicher_stundensatz: 58.00
+monteure_anzahl: 7
+montage_stunden_pro_einheit:
+  min: 4
+  max: 6
+  standard: 5

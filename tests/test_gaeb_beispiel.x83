@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<GAEB xmlns="http://www.gaeb.de/GAEB_DA_XML/200407" Version="3.1">
+  <GAEBInfo>
+    <Version>3.1</Version>
+    <ProgInfo>TestGenerator</ProgInfo>
+  </GAEBInfo>
+  <Award Dp="83">
+    <BoQ>
+      <BoQInfo>
+        <Name>Testausschreibung Schule Ober-Moerlen</Name>
+      </BoQInfo>
+      <BoQBody>
+        <BoQCtgy ID="LG01" RNoPart="01">
+          <BoQBody>
+            <Itemlist>
+              <Item ID="01.01.001">
+                <RNoPart>01.01.001</RNoPart>
+                <Qty>8.000</Qty>
+                <QU>STK</QU>
+                <Description>
+                  <OutlineText>
+                    <OutlTxt>
+                      <TextOutlTxt>
+                        <span>Einbauschrank Klassenzimmer B120 H260 T60</span>
+                      </TextOutlTxt>
+                    </OutlTxt>
+                  </OutlineText>
+                  <CompleteText>
+                    <DetailTxt>
+                      <Text>
+                        <span>Einbauschrank Melamin weiss, 4 Einlegeboeden, Schloss, Sockel</span>
+                      </Text>
+                    </DetailTxt>
+                  </CompleteText>
+                </Description>
+              </Item>
+              <Item ID="01.01.002">
+                <RNoPart>01.01.002</RNoPart>
+                <Qty>4.000</Qty>
+                <QU>STK</QU>
+                <Description>
+                  <OutlineText>
+                    <OutlTxt>
+                      <TextOutlTxt>
+                        <span>Garderobenschrank B90 H190 T55 RAL 7035 lackiert</span>
+                      </TextOutlTxt>
+                    </OutlTxt>
+                  </OutlineText>
+                </Description>
+              </Item>
+              <Item ID="01.02.001">
+                <RNoPart>01.02.001</RNoPart>
+                <Qty>12.000</Qty>
+                <QU>STK</QU>
+                <Description>
+                  <OutlineText>
+                    <OutlTxt>
+                      <TextOutlTxt>
+                        <span>Regalwand B80 H200 T35 Birke Multiplex</span>
+                      </TextOutlTxt>
+                    </OutlTxt>
+                  </OutlineText>
+                </Description>
+              </Item>
+            </Itemlist>
+          </BoQBody>
+        </BoQCtgy>
+      </BoQBody>
+    </BoQ>
+  </Award>
+</GAEB>

@@ -1,0 +1,8 @@
+gemeinkosten_gkz: 0.25
+gewinnaufschlag_standard: 0.20
+gewinnaufschlag_oeffentlich: 0.15
+gewinnaufschlag_privat: 0.28
+wagnis_vob: 0.03
+montage_baustellenzuschlag: 0.12
+fremdleistung_lackierung: 0.15
+fremdleistung_montage: 0.12

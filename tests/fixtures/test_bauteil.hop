@@ -1,0 +1,37 @@
+;MAKROTYP=0
+;INSTVERSION=
+;EXEVERSION=7.8.0.2[Hops.exe]
+;BILD=
+;INFO=
+;WZGV=HOLZHER
+;WZGVCONFIG=
+;MASCHINE=HOLZHER
+;NCNAME=
+;KOMMENTAR=Testbauteil Seitenwand 800x400x19
+;DX=800
+;DY=400
+;DZ=19
+;DIALOGDLL=Dialoge.Dll
+;DIALOGPROC=StandardFormAnzeigen
+;DIALOGKIND=0
+;AUTOSCRIPTSTART=1
+;BUTTONBILD=
+;DIMENSION_UNIT=0
+VARS
+   DX := 800;*VAR*
+   DY := 400;*VAR*
+   DZ := 19;*VAR*
+START
+Fertigteil (DX,DY,DZ,0,0,0,0,0,'Testbauteil Seitenwand 800x400x19',0,0,0)
+Bohrung (37,37,5mm,12,0,0,0,0,0,0,0,0)
+Bohrung (37,69,5mm,12,0,0,0,0,0,0,0,0)
+Bohrung (37,101,5mm,12,0,0,0,0,0,0,0,0)
+Bohrung (37,133,5mm,12,0,0,0,0,0,0,0,0)
+Bohrung (37,165,5mm,12,0,0,0,0,0,0,0,0)
+Bohrung (37,197,5mm,12,0,0,0,0,0,0,0,0)
+Bohrung (763,37,5mm,12,0,0,0,0,0,0,0,0)
+Bohrung (763,69,5mm,12,0,0,0,0,0,0,0,0)
+Bohrung (763,101,5mm,12,0,0,0,0,0,0,0,0)
+Bohrung (763,133,5mm,12,0,0,0,0,0,0,0,0)
+Bohrung (763,165,5mm,12,0,0,0,0,0,0,0,0)
+Bohrung (763,197,5mm,12,0,0,0,0,0,0,0,0)

@@ -1,0 +1,46 @@
+# Schreiner's Buero (SB) Verbindungskonfiguration
+# Branchensoftware von Informationssysteme Dinklage, Koeln
+# Laeuft lokal auf Apache/PHP/MySQL im Werkstatt-LAN
+
+# API-Endpunkt (PHP-Server im LAN)
+api_url: "http://192.168.51.85/sb/proc/sb.php"
+api_user: ""
+api_pw: ""
+
+# Timeout fuer Verbindung in Sekunden
+timeout_sekunden: 30
+
+# CSV-Austauschverzeichnis (Netzlaufwerk oder lokaler Pfad)
+# Fallback wenn API nicht erreichbar
+csv_import_verzeichnis: "data/sb_import"
+csv_export_verzeichnis: "data/sb_export"
+
+# CSV-Format (Schreiners Buero Standard)
+csv_trennzeichen: ";"
+csv_encoding: "iso-8859-1"   # SB nutzt ISO-8859-1 als Standard-Charset
+
+# Automatische Synchronisation
+auto_sync: false
+sync_intervall_minuten: 60
+
+# Mapping: SB-Felder -> Brandstifter-Felder
+feld_mapping:
+  # Auftrag/Projekt
+  auftragsnummer: "id"
+  bezeichnung: "name"
+  kunde_name: "kunde"
+  # Positionen/Stueckliste
+  pos_nr: "pos_nr"
+  pos_bezeichnung: "kurztext"
+  pos_menge: "menge"
+  pos_einheit: "einheit"
+  pos_material: "material"
+  pos_ep: "einheitspreis"
+  pos_gp: "gesamtpreis"
+
+# Standardwerte fuer SB-Felder die Brandstifter nicht hat
+defaults:
+  kostenstelle: "100"          # Standard-Kostenstelle
+  auftragsart: "A"             # A=Auftrag, AN=Angebot
+  waehrung: "EUR"
+  mwst_satz: 19.0

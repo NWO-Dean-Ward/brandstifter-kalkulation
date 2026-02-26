@@ -1,0 +1,27 @@
+holzher_nextec_7707:
+  name: "Holzher Nextec 7707 (Nesting CNC)"
+  nc_system: "NCHops"
+  cad_quelle: "Smartwoop"
+  kapazitaet_hochwertig:
+    halbformat_platten_pro_schicht: 13
+    schichtdauer_stunden: 8
+  kapazitaet_standard:
+    halbformat_platten_pro_schicht: 20
+    schichtdauer_stunden: 8
+  stundensatz_eur: 85.00
+  ruestzeit_min: 30
+
+kantenanleimmaschine:
+  name: "Kantenanleimmaschine"
+  stundensatz_eur: 45.00
+  lfm_pro_stunde: 10
+
+formatkreissaege:
+  name: "Formatkreissäge"
+  stundensatz_eur: 35.00
+  schnitte_pro_stunde: 30
+
+bohrautomat:
+  name: "Bohrautomat"
+  stundensatz_eur: 30.00
+  bohrungen_pro_stunde: 60
