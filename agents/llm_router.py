@@ -78,7 +78,7 @@ class LLMRouter:
         self,
         ollama_url: str = OLLAMA_BASE_URL,
         claude_api_key: str = "",
-        timeout: float = 120.0,
+        timeout: float = 300.0,
     ) -> None:
         self._ollama_url = ollama_url.rstrip("/")
         self._claude_api_key = claude_api_key
