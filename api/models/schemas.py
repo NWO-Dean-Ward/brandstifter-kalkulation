@@ -166,3 +166,96 @@ class UploadResponse(BaseModel):
     positionen_anzahl: int
     positionen: list[dict] = []
     warnungen: list[str] = []
+
+
+# --- Werkstueck ---
+
+class WerkstueckCreate(BaseModel):
+    position_id: int | None = None
+    bezeichnung: str
+    anzahl: int = 1
+    laenge_mm: float = 0
+    breite_mm: float = 0
+    tiefe_mm: float = 0
+    staerke_mm: float = 0
+    material: str = ""  # Spanplatte | MDF | Multiplex | Massivholz | Mineralwerkstoff | Sonstige
+    oberflaeche: str = ""  # Melamin | Folie | Echtholzfurnier | Mineralwerkstoff | Lackiert-extern
+    fertigung: str = "cnc-nesting"  # cnc-nesting | handfertigung | zukauf
+    hop_datei: str = ""
+    notizen: str = ""
+
+
+class WerkstueckResponse(BaseModel):
+    id: int
+    projekt_id: str
+    position_id: int | None
+    bezeichnung: str
+    anzahl: int
+    laenge_mm: float
+    breite_mm: float
+    tiefe_mm: float
+    staerke_mm: float
+    material: str
+    oberflaeche: str
+    fertigung: str
+    ist_fremdleistung: bool
+    hop_datei: str
+    notizen: str
+    erstellt_am: str
+
+
+# --- Zukaufteil ---
+
+class ZukaufteilCreate(BaseModel):
+    position_id: int | None = None
+    bezeichnung: str
+    hersteller: str = ""
+    produkt: str = ""
+    artikel_nr: str = ""
+    produkt_link: str = ""
+    einkaufspreis: float = 0
+    menge: float = 1
+    aufschlag_prozent: float = 15.0
+    status: str = "ausstehend"  # ausstehend | angefragt | bestellt | geliefert
+    quelle: str = "manuell"
+
+
+class ZukaufteilResponse(BaseModel):
+    id: int
+    projekt_id: str
+    position_id: int | None
+    bezeichnung: str
+    hersteller: str
+    produkt: str
+    artikel_nr: str
+    produkt_link: str
+    einkaufspreis: float
+    menge: float
+    aufschlag_prozent: float
+    verkaufspreis: float
+    status: str
+    quelle: str
+    alternativ_json: str
+    erstellt_am: str
+    aktualisiert_am: str
+
+
+# --- Manuelle Ueberschreibung ---
+
+class UeberschreibungCreate(BaseModel):
+    position_id: int
+    feld: str  # einheitspreis | materialkosten | maschinenkosten | lohnkosten | gesamtpreis
+    neuer_wert: float
+    begruendung: str  # Pflichtfeld
+
+
+class UeberschreibungResponse(BaseModel):
+    id: int
+    projekt_id: str
+    position_id: int
+    feld: str
+    alter_wert: float
+    neuer_wert: float
+    begruendung: str
+    geaendert_am: str
+    geaendert_von: str

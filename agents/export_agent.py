@@ -164,9 +164,14 @@ class ExportAgent(BaseAgent):
         table_data = [header_row]
 
         for pos in positionen:
-            ep = zuschlaege.get("angebotspreis_gesamt", 0) / max(len(positionen), 1)
-            ep_pro_einheit = ep / max(float(pos.get("menge", 1)), 1)
-            gp = ep
+            menge = max(float(pos.get("menge", 1)), 1)
+            gp = float(pos.get("gesamtpreis", 0))
+            ep_pro_einheit = float(pos.get("einheitspreis", 0))
+
+            # Fallback: Falls keine Per-Position-Preise vorhanden (alte Daten)
+            if gp == 0 and ep_pro_einheit == 0 and len(positionen) > 0:
+                gp = zuschlaege.get("angebotspreis_gesamt", 0) / len(positionen)
+                ep_pro_einheit = gp / menge
 
             table_data.append([
                 Paragraph(str(pos.get("pos_nr", "")), styles["PosText"]),
@@ -556,11 +561,13 @@ class ExportAgent(BaseAgent):
         itemlist = etree.SubElement(boq_body, f"{{{ns}}}Itemlist")
 
         # Positionen schreiben
-        preis_pro_pos = angebotspreis / max(len(positionen), 1)
-
         for pos in positionen:
-            menge = float(pos.get("menge", 1))
-            ep = preis_pro_pos / max(menge, 1)
+            menge = max(float(pos.get("menge", 1)), 1)
+            ep = float(pos.get("einheitspreis", 0))
+
+            # Fallback: Falls keine Per-Position-Preise vorhanden
+            if ep == 0 and len(positionen) > 0:
+                ep = (angebotspreis / len(positionen)) / menge
 
             item = etree.SubElement(itemlist, f"{{{ns}}}Item")
             item.set("ID", str(pos.get("pos_nr", "")))
@@ -618,7 +625,7 @@ class ExportAgent(BaseAgent):
                     "menge": float(p.get("menge", 0)),
                     "einheit": p.get("einheit", "STK"),
                     "material": p.get("material", ""),
-                    "preis": zuschlaege.get("angebotspreis_gesamt", 0) / max(len(positionen), 1),
+                    "preis": float(p.get("gesamtpreis", 0)) or (zuschlaege.get("angebotspreis_gesamt", 0) / max(len(positionen), 1)),
                 }
                 for p in positionen
             ],

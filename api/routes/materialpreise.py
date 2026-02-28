@@ -77,7 +77,10 @@ async def importiere_preisliste(datei: UploadFile = File(...)):
     if not datei.filename:
         raise HTTPException(status_code=400, detail="Kein Dateiname")
 
+    MAX_UPLOAD_SIZE = 50 * 1024 * 1024  # 50 MB
     content = await datei.read()
+    if len(content) > MAX_UPLOAD_SIZE:
+        raise HTTPException(status_code=413, detail="Datei zu gross (max. 50 MB)")
     suffix = datei.filename.rsplit(".", 1)[-1].lower()
 
     if suffix == "csv":

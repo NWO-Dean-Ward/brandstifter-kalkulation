@@ -25,6 +25,12 @@ httpx==0.28.1
 # CNC (SmartWOP/NCHops)
 nc-hops
 
+# Browser-Automation (Einkaufs-Agent)
+playwright==1.49.1
+
+# Verschluesselung (Partner-Logins)
+cryptography==44.0.0
+
 # KI (optional, für Lern-Agent)
 anthropic==0.43.0
 

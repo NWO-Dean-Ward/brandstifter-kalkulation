@@ -12,6 +12,8 @@ from agents.lohn_kalkulator import LohnKalkulator
 from agents.zuschlag_kalkulator import ZuschlagKalkulator
 from agents.export_agent import ExportAgent
 from agents.lern_agent import LernAgent
+from agents.analyse_agent import AnalyseAgent
+from agents.einkaufs_agent import EinkaufsAgent
 
 __all__ = [
     "BaseAgent",
@@ -25,4 +27,6 @@ __all__ = [
     "ZuschlagKalkulator",
     "ExportAgent",
     "LernAgent",
+    "AnalyseAgent",
+    "EinkaufsAgent",
 ]

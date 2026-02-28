@@ -199,43 +199,52 @@ async def upload_dokument(
         raise HTTPException(status_code=400, detail="Kein Dateiname")
 
     # Datei temporär speichern
+    import os
     import tempfile
     from pathlib import Path
 
+    MAX_UPLOAD_SIZE = 50 * 1024 * 1024  # 50 MB
+
     suffix = Path(datei.filename).suffix
+    content = await datei.read()
+    if len(content) > MAX_UPLOAD_SIZE:
+        raise HTTPException(status_code=413, detail="Datei zu gross (max. 50 MB)")
+
     with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
-        content = await datei.read()
         tmp.write(content)
         tmp_path = tmp.name
 
-    # Parser ausführen
-    if _pipeline is None:
-        raise HTTPException(
-            status_code=503,
-            detail="Kalkulations-Pipeline nicht initialisiert",
+    try:
+        # Parser ausführen
+        if _pipeline is None:
+            raise HTTPException(
+                status_code=503,
+                detail="Kalkulations-Pipeline nicht initialisiert",
+            )
+
+        from agents.base_agent import AgentMessage
+
+        if not projekt_id:
+            projekt_id = f"PRJ-{uuid.uuid4().hex[:8].upper()}"
+
+        message = AgentMessage(
+            sender="api",
+            receiver="dokument_parser",
+            msg_type="parse_dokument",
+            payload={"datei_pfad": tmp_path},
+            projekt_id=projekt_id,
         )
 
-    from agents.base_agent import AgentMessage
+        parser = _pipeline.subagenten.get("dokument_parser")
+        if parser is None:
+            raise HTTPException(status_code=503, detail="Dokument-Parser nicht verfügbar")
 
-    if not projekt_id:
-        projekt_id = f"PRJ-{uuid.uuid4().hex[:8].upper()}"
+        result = await parser.execute(message)
 
-    message = AgentMessage(
-        sender="api",
-        receiver="dokument_parser",
-        msg_type="parse_dokument",
-        payload={"datei_pfad": tmp_path},
-        projekt_id=projekt_id,
-    )
-
-    parser = _pipeline.subagenten.get("dokument_parser")
-    if parser is None:
-        raise HTTPException(status_code=503, detail="Dokument-Parser nicht verfügbar")
-
-    result = await parser.execute(message)
-
-    if result.msg_type == "error":
-        raise HTTPException(status_code=500, detail=result.payload.get("error", "Parse-Fehler"))
+        if result.msg_type == "error":
+            raise HTTPException(status_code=500, detail=result.payload.get("error", "Parse-Fehler"))
+    finally:
+        os.unlink(tmp_path)
 
     return UploadResponse(
         datei_name=datei.filename,

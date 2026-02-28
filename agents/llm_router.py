@@ -47,6 +47,7 @@ class LLMTask(str, Enum):
     LERN_ANALYSE = "lernen"                    # -> claude
     CODE_GENERIERUNG = "code"                  # -> qwen-coder
     EXPORT_FORMATIERUNG = "export"             # -> qwen-coder
+    BILD_ANALYSE = "bild_analyse"              # -> claude (Vision)
 
 
 # Automatisches Routing: Task -> bevorzugtes Modell (mit Fallbacks)
@@ -65,6 +66,8 @@ TASK_ROUTING: dict[LLMTask, list[LLMModell]] = {
     # Claude primaer (Fallback auf lokale Modelle)
     LLMTask.LEAD_ORCHESTRIERUNG: [LLMModell.CLAUDE, LLMModell.QWEN_CODER, LLMModell.GPT_OSS],
     LLMTask.LERN_ANALYSE: [LLMModell.CLAUDE, LLMModell.QWEN_CODER, LLMModell.GPT_OSS],
+    # Claude Vision (kein Fallback - nur Claude kann Bilder)
+    LLMTask.BILD_ANALYSE: [LLMModell.CLAUDE],
 }
 
 
@@ -279,6 +282,123 @@ class LLMRouter:
                 "error": str(exc),
                 "tokens": 0,
                 "duration_ms": 0,
+            }
+
+    async def analyse_bild(
+        self,
+        image_data: bytes,
+        media_type: str = "image/jpeg",
+        prompt: str = "",
+        max_tokens: int = 4096,
+    ) -> dict[str, Any]:
+        """Analysiert ein Bild oder 3D-Rendering via Claude Vision API.
+
+        Fuer Moebel-/Sonderbau-Preisschaetzung aus Fotos, Renderings, Screenshots.
+        """
+        if not self._claude_api_key:
+            return {
+                "response": "",
+                "modell": "claude",
+                "error": "Kein API-Key konfiguriert. Setze ANTHROPIC_API_KEY in .env",
+                "tokens": 0,
+            }
+
+        import base64
+        b64 = base64.standard_b64encode(image_data).decode("utf-8")
+
+        system_prompt = (
+            "Du bist ein erfahrener Schreinermeister und Kalkulationsexperte fuer Sonderbauten "
+            "und Moebelbau in Deutschland. Analysiere das Bild und erstelle eine detaillierte "
+            "Preisschaetzung.\n\n"
+            "Analysiere:\n"
+            "1. Moebeltyp und Komplexitaet\n"
+            "2. Geschaetzte Abmessungen (L x B x H in mm)\n"
+            "3. Erkannte Materialien (Platte, Massivholz, Glas, etc.)\n"
+            "4. Geschaetzte Materialmengen (qm Platte, lfm Kanten, etc.)\n"
+            "5. Beschlaege und Zukaufteile (Scharniere, Griffe, Auszuege, etc.)\n"
+            "6. Geschaetzte Arbeitsstunden nach Kategorie\n"
+            "7. Oberflaechenbehandlung (Lack, Beize, Oel, Folie)\n"
+            "8. Besonderheiten und Risiken\n\n"
+            "Antworte NUR mit einem JSON-Objekt im folgenden Format:\n"
+            "{\n"
+            '  "moebeltyp": "z.B. Einbauschrank, Empfangstresen, KlappBar",\n'
+            '  "komplexitaet": "einfach|mittel|komplex|sehr_komplex",\n'
+            '  "abmessungen": {"laenge_mm": 0, "breite_mm": 0, "hoehe_mm": 0},\n'
+            '  "materialien": [\n'
+            '    {"typ": "platte|massivholz|glas|metall", "bezeichnung": "...", "menge_qm": 0, "preis_qm_schaetzung": 0}\n'
+            "  ],\n"
+            '  "kanten_lfm": 0,\n'
+            '  "beschlaege": [\n'
+            '    {"bezeichnung": "...", "anzahl": 0, "preis_schaetzung": 0}\n'
+            "  ],\n"
+            '  "arbeitsstunden": {\n'
+            '    "werkstatt": 0, "cnc": 0, "oberflaeche": 0, "montage": 0\n'
+            "  },\n"
+            '  "oberflaeche": "roh|geoelt|lackiert|furniert|folie",\n'
+            '  "preis_schaetzung": {\n'
+            '    "material_netto": 0,\n'
+            '    "lohn_netto": 0,\n'
+            '    "gesamt_netto": 0,\n'
+            '    "konfidenz": "hoch|mittel|niedrig"\n'
+            "  },\n"
+            '  "hinweise": ["...", "..."]\n'
+            "}\n"
+        )
+
+        if prompt:
+            system_prompt += f"\nZusaetzliche Info vom Benutzer: {prompt}"
+
+        try:
+            from anthropic import AsyncAnthropic
+
+            client = AsyncAnthropic(api_key=self._claude_api_key)
+            message = await client.messages.create(
+                model="claude-sonnet-4-20250514",
+                max_tokens=max_tokens,
+                system=system_prompt,
+                messages=[{
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "image",
+                            "source": {
+                                "type": "base64",
+                                "media_type": media_type,
+                                "data": b64,
+                            },
+                        },
+                        {
+                            "type": "text",
+                            "text": "Analysiere dieses Moebelstueck/diesen Sonderbau und erstelle eine Preisschaetzung.",
+                        },
+                    ],
+                }],
+            )
+            response_text = message.content[0].text if message.content else ""
+
+            # JSON extrahieren
+            result_data = {}
+            try:
+                start = response_text.find("{")
+                end = response_text.rfind("}") + 1
+                if start >= 0 and end > start:
+                    result_data = json.loads(response_text[start:end])
+            except (json.JSONDecodeError, ValueError):
+                result_data = {"raw_response": response_text}
+
+            return {
+                "response": result_data,
+                "modell": "claude-vision",
+                "tokens": message.usage.output_tokens,
+                "input_tokens": message.usage.input_tokens,
+            }
+        except Exception as exc:
+            logger.error("Claude Vision Fehler: %s", exc)
+            return {
+                "response": {},
+                "modell": "claude-vision",
+                "error": str(exc),
+                "tokens": 0,
             }
 
     async def schaetze_materialpreis(self, material: str, einheit: str = "m2") -> dict[str, Any]:

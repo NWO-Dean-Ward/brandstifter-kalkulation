@@ -6,14 +6,19 @@ Dateien:
 - config/zuschlaege.yaml
 - config/stundensaetze.yaml
 - config/schreiners_buero.yaml
+- config/partner-logins.yaml (Fernet-verschluesselt)
+- config/.secret_key (auto-generiert, in .gitignore)
 """
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 from typing import Any
 
 import yaml
+
+logger = logging.getLogger(__name__)
 
 CONFIG_DIR = Path("config")
 
@@ -85,3 +90,93 @@ class AppConfig:
         """Aktualisiert und speichert Stundensätze."""
         self.stundensaetze.update(data)
         _save_yaml("stundensaetze.yaml", self.stundensaetze)
+
+    def get_partner_logins(self) -> dict[str, dict[str, str]]:
+        """Laedt und entschluesselt Partner-Logins fuer den Einkaufs-Agent."""
+        return _load_encrypted_logins()
+
+    def save_partner_login(self, partner: str, username: str, password: str) -> None:
+        """Speichert einen verschluesselten Partner-Login."""
+        _save_encrypted_login(partner, username, password)
+
+
+# --- Fernet-Verschluesselung fuer Partner-Logins ---
+
+def _get_or_create_fernet_key() -> bytes:
+    """Laedt oder erstellt den Fernet-Schluessel."""
+    key_path = CONFIG_DIR / ".secret_key"
+    if key_path.exists():
+        return key_path.read_bytes().strip()
+
+    try:
+        from cryptography.fernet import Fernet
+        key = Fernet.generate_key()
+        key_path.parent.mkdir(parents=True, exist_ok=True)
+        key_path.write_bytes(key)
+        logger.info("Neuer Fernet-Schluessel generiert: %s", key_path)
+        return key
+    except ImportError:
+        logger.warning("cryptography nicht installiert - Partner-Logins nicht verschluesselt")
+        return b""
+
+
+def _load_encrypted_logins() -> dict[str, dict[str, str]]:
+    """Laedt Partner-Logins und entschluesselt Passwoerter."""
+    login_path = CONFIG_DIR / "partner-logins.yaml"
+    if not login_path.exists():
+        return {}
+
+    try:
+        data = _load_yaml("partner-logins.yaml")
+    except FileNotFoundError:
+        return {}
+
+    key = _get_or_create_fernet_key()
+    if not key:
+        return data.get("partner", {})
+
+    try:
+        from cryptography.fernet import Fernet
+        f = Fernet(key)
+    except ImportError:
+        return data.get("partner", {})
+
+    result: dict[str, dict[str, str]] = {}
+    for partner, creds in data.get("partner", {}).items():
+        pw = creds.get("password", "")
+        if pw.startswith("gAAAAA"):  # Fernet-verschluesselt
+            try:
+                pw = f.decrypt(pw.encode()).decode()
+            except Exception:
+                logger.warning("Passwort fuer %s konnte nicht entschluesselt werden", partner)
+                pw = ""
+        result[partner] = {"username": creds.get("username", ""), "password": pw}
+
+    return result
+
+
+def _save_encrypted_login(partner: str, username: str, password: str) -> None:
+    """Speichert einen Partner-Login mit verschluesseltem Passwort."""
+    login_path = CONFIG_DIR / "partner-logins.yaml"
+
+    if login_path.exists():
+        data = _load_yaml("partner-logins.yaml")
+    else:
+        data = {"partner": {}}
+
+    key = _get_or_create_fernet_key()
+    encrypted_pw = password
+
+    if key:
+        try:
+            from cryptography.fernet import Fernet
+            f = Fernet(key)
+            encrypted_pw = f.encrypt(password.encode()).decode()
+        except ImportError:
+            logger.warning("cryptography nicht installiert - Passwort wird unverschluesselt gespeichert")
+
+    if "partner" not in data:
+        data["partner"] = {}
+
+    data["partner"][partner] = {"username": username, "password": encrypted_pw}
+    _save_yaml("partner-logins.yaml", data)

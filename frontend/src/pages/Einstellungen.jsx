@@ -13,18 +13,18 @@ export default function Einstellungen() {
 
   return (
     <div className="max-w-4xl mx-auto">
-      <h1 className="text-2xl font-bold text-slate-800 mb-6">Einstellungen</h1>
+      <h1 className="text-2xl font-bold text-white mb-6">Einstellungen</h1>
 
       {/* Tab-Navigation */}
-      <div className="flex gap-1 bg-slate-100 rounded-lg p-1 mb-6">
+      <div className="flex gap-1 bg-slate-800/60 rounded-lg p-1 mb-6">
         {tabs.map(t => (
           <button
             key={t.id}
             onClick={() => setTab(t.id)}
             className={`flex-1 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
               tab === t.id
-                ? 'bg-white text-slate-800 shadow-sm'
-                : 'text-slate-500 hover:text-slate-700'
+                ? 'bg-amber-600/90 text-white shadow-lg shadow-amber-900/20'
+                : 'text-slate-400 hover:text-slate-200'
             }`}
           >
             {t.label}
@@ -86,7 +86,7 @@ function MaschinenTab() {
     <ConfigCard title="Maschinenkonfiguration" onSave={save} saving={saving} msg={msg}>
       {maschinen.map(m => (
         <div key={m.key} className="mb-6 last:mb-0">
-          <h3 className="font-medium text-slate-700 mb-3">{m.label}</h3>
+          <h3 className="font-medium text-slate-200 mb-3">{m.label}</h3>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
             {m.fields.map(f => (
               <ConfigField
@@ -147,15 +147,15 @@ function ZuschlaegeTab() {
       <div className="grid grid-cols-2 gap-4">
         {fields.map(f => (
           <div key={f.key}>
-            <label className="block text-sm font-medium text-slate-600 mb-1">{f.label}</label>
+            <label className="block text-sm font-medium text-slate-300 mb-1">{f.label}</label>
             <div className="flex items-center gap-2">
               <input
                 type="number" step="0.01" min="0" max="1"
                 value={data[f.key] ?? ''}
                 onChange={e => update(f.key, e.target.value)}
-                className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none"
+                className="w-full border border-slate-600 rounded-lg px-3 py-2 text-sm bg-slate-800/60 text-slate-200 outline-none focus:ring-1 focus:ring-amber-500/50 focus:border-amber-500/50"
               />
-              <span className="text-sm text-slate-500 whitespace-nowrap">
+              <span className="text-sm text-slate-400 whitespace-nowrap">
                 = {((data[f.key] || 0) * 100).toFixed(0)}%
               </span>
             </div>
@@ -215,7 +215,7 @@ function StundensaetzeTab() {
           onChange={v => update('monteure_anzahl', v)}
         />
       </div>
-      <h3 className="font-medium text-slate-700 mb-3">Montage-Stunden pro Einheit</h3>
+      <h3 className="font-medium text-slate-200 mb-3">Montage-Stunden pro Einheit</h3>
       <div className="grid grid-cols-3 gap-4">
         <ConfigField
           label="Minimum"
@@ -296,17 +296,17 @@ function MaterialpreiseTab() {
   }
 
   return (
-    <div className="bg-white rounded-xl border border-slate-200 shadow-sm">
-      <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
-        <h2 className="font-semibold text-slate-700">Materialpreisliste</h2>
+    <div className="glass-card">
+      <div className="px-5 py-4 border-b border-slate-700/30 flex items-center justify-between">
+        <h2 className="font-semibold text-slate-200">Materialpreisliste</h2>
         <div className="flex gap-2">
-          <label className="border border-slate-300 hover:border-orange-400 text-slate-700 px-3 py-1.5 rounded-lg text-sm font-medium cursor-pointer transition-colors">
+          <label className="border border-slate-600 hover:border-amber-500/50 text-slate-200 px-3 py-1.5 rounded-lg text-sm font-medium cursor-pointer transition-colors">
             CSV/Excel importieren
             <input type="file" accept=".csv,.xlsx,.xls" onChange={handleImport} className="hidden" />
           </label>
           <button
             onClick={() => setShowAdd(!showAdd)}
-            className="bg-orange-600 hover:bg-orange-700 text-white px-3 py-1.5 rounded-lg text-sm font-medium transition-colors"
+            className="bg-amber-600 hover:bg-amber-700 text-white px-3 py-1.5 rounded-lg text-sm font-medium transition-colors"
           >
             + Neuer Preis
           </button>
@@ -314,44 +314,44 @@ function MaterialpreiseTab() {
       </div>
 
       {msg && (
-        <div className="mx-5 mt-3 text-sm text-green-700 bg-green-50 border border-green-200 rounded px-3 py-2">
+        <div className="mx-5 mt-3 text-sm text-green-400 bg-green-500/10 border border-green-500/30 rounded px-3 py-2">
           {msg}
         </div>
       )}
 
       {/* Neuer Preis Form */}
       {showAdd && (
-        <form onSubmit={handleAdd} className="px-5 py-4 border-b border-slate-100 bg-slate-50">
+        <form onSubmit={handleAdd} className="px-5 py-4 border-b border-slate-700/30 bg-slate-800/40">
           <div className="grid grid-cols-5 gap-3">
             <input
               required
               value={newItem.material_name}
               onChange={e => setNewItem(p => ({ ...p, material_name: e.target.value }))}
               placeholder="Materialname"
-              className="border border-slate-300 rounded px-2 py-1.5 text-sm outline-none focus:ring-1 focus:ring-orange-500"
+              className="border border-slate-600 rounded px-2 py-1.5 text-sm bg-slate-800/60 text-slate-200 outline-none focus:ring-1 focus:ring-amber-500/50"
             />
             <input
               value={newItem.kategorie}
               onChange={e => setNewItem(p => ({ ...p, kategorie: e.target.value }))}
               placeholder="Kategorie"
-              className="border border-slate-300 rounded px-2 py-1.5 text-sm outline-none focus:ring-1 focus:ring-orange-500"
+              className="border border-slate-600 rounded px-2 py-1.5 text-sm bg-slate-800/60 text-slate-200 outline-none focus:ring-1 focus:ring-amber-500/50"
             />
             <input
               value={newItem.lieferant}
               onChange={e => setNewItem(p => ({ ...p, lieferant: e.target.value }))}
               placeholder="Lieferant"
-              className="border border-slate-300 rounded px-2 py-1.5 text-sm outline-none focus:ring-1 focus:ring-orange-500"
+              className="border border-slate-600 rounded px-2 py-1.5 text-sm bg-slate-800/60 text-slate-200 outline-none focus:ring-1 focus:ring-amber-500/50"
             />
             <input
               type="number" step="0.01" min="0" required
               value={newItem.preis}
               onChange={e => setNewItem(p => ({ ...p, preis: e.target.value }))}
               placeholder="Preis"
-              className="border border-slate-300 rounded px-2 py-1.5 text-sm outline-none focus:ring-1 focus:ring-orange-500"
+              className="border border-slate-600 rounded px-2 py-1.5 text-sm bg-slate-800/60 text-slate-200 outline-none focus:ring-1 focus:ring-amber-500/50"
             />
             <button
               type="submit"
-              className="bg-orange-600 hover:bg-orange-700 text-white rounded text-sm font-medium transition-colors"
+              className="bg-amber-600 hover:bg-amber-700 text-white rounded text-sm font-medium transition-colors"
             >
               Speichern
             </button>
@@ -360,16 +360,16 @@ function MaterialpreiseTab() {
       )}
 
       {/* Suche */}
-      <form onSubmit={handleSearch} className="px-5 py-3 border-b border-slate-100 flex gap-2">
+      <form onSubmit={handleSearch} className="px-5 py-3 border-b border-slate-700/30 flex gap-2">
         <input
           value={suche}
           onChange={e => setSuche(e.target.value)}
           placeholder="Material suchen..."
-          className="flex-1 border border-slate-300 rounded-lg px-3 py-1.5 text-sm outline-none focus:ring-1 focus:ring-orange-500"
+          className="flex-1 border border-slate-600 rounded-lg px-3 py-1.5 text-sm bg-slate-800/60 text-slate-200 outline-none focus:ring-1 focus:ring-amber-500/50"
         />
         <button
           type="submit"
-          className="text-sm text-orange-600 hover:text-orange-700 font-medium"
+          className="text-sm text-amber-500 hover:text-amber-400 font-medium"
         >
           Suchen
         </button>
@@ -383,7 +383,7 @@ function MaterialpreiseTab() {
       ) : (
         <table className="w-full">
           <thead>
-            <tr className="text-left text-xs text-slate-500 uppercase tracking-wider">
+            <tr className="text-left text-xs text-slate-400 uppercase tracking-wider">
               <th className="px-5 py-3">Material</th>
               <th className="px-5 py-3">Kategorie</th>
               <th className="px-5 py-3">Lieferant</th>
@@ -392,17 +392,17 @@ function MaterialpreiseTab() {
               <th className="px-5 py-3">Gueltig ab</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100">
+          <tbody className="divide-y divide-slate-700/30">
             {liste.map(m => (
-              <tr key={m.id} className="hover:bg-slate-50">
-                <td className="px-5 py-3 text-sm font-medium text-slate-800">{m.material_name}</td>
-                <td className="px-5 py-3 text-sm text-slate-600">{m.kategorie || '-'}</td>
-                <td className="px-5 py-3 text-sm text-slate-600">{m.lieferant || '-'}</td>
-                <td className="px-5 py-3 text-sm text-slate-600">{m.einheit}</td>
-                <td className="px-5 py-3 text-sm text-right font-medium text-slate-800">
+              <tr key={m.id} className="hover:bg-slate-700/30">
+                <td className="px-5 py-3 text-sm font-medium text-white">{m.material_name}</td>
+                <td className="px-5 py-3 text-sm text-slate-300">{m.kategorie || '-'}</td>
+                <td className="px-5 py-3 text-sm text-slate-300">{m.lieferant || '-'}</td>
+                <td className="px-5 py-3 text-sm text-slate-300">{m.einheit}</td>
+                <td className="px-5 py-3 text-sm text-right font-medium text-white">
                   {Number(m.preis).toFixed(2)} EUR
                 </td>
-                <td className="px-5 py-3 text-sm text-slate-500">
+                <td className="px-5 py-3 text-sm text-slate-400">
                   {m.gueltig_ab ? new Date(m.gueltig_ab).toLocaleDateString('de-DE') : '-'}
                 </td>
               </tr>
@@ -417,17 +417,17 @@ function MaterialpreiseTab() {
 // --- Shared Components ---
 function ConfigCard({ title, children, onSave, saving, msg }) {
   return (
-    <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
+    <div className="glass-card p-6">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="font-semibold text-slate-700">{title}</h2>
-        {msg && <span className="text-sm text-green-600">{msg}</span>}
+        <h2 className="font-semibold text-slate-200">{title}</h2>
+        {msg && <span className="text-sm text-green-400">{msg}</span>}
       </div>
       {children}
       <div className="mt-6 flex justify-end">
         <button
           onClick={onSave}
           disabled={saving}
-          className="bg-orange-600 hover:bg-orange-700 disabled:bg-slate-300 text-white px-6 py-2 rounded-lg text-sm font-medium transition-colors"
+          className="bg-amber-600 hover:bg-amber-700 disabled:bg-slate-700 disabled:text-slate-500 text-white px-6 py-2 rounded-lg text-sm font-medium transition-colors"
         >
           {saving ? 'Speichern...' : 'Speichern'}
         </button>
@@ -439,12 +439,12 @@ function ConfigCard({ title, children, onSave, saving, msg }) {
 function ConfigField({ label, value, onChange }) {
   return (
     <div>
-      <label className="block text-sm font-medium text-slate-600 mb-1">{label}</label>
+      <label className="block text-sm font-medium text-slate-300 mb-1">{label}</label>
       <input
         type="number" step="any"
         value={value}
         onChange={e => onChange(e.target.value)}
-        className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none"
+        className="w-full border border-slate-600 rounded-lg px-3 py-2 text-sm bg-slate-800/60 text-slate-200 outline-none focus:ring-1 focus:ring-amber-500/50 focus:border-amber-500/50"
       />
     </div>
   )

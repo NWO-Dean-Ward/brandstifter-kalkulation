@@ -76,6 +76,13 @@ class MaterialKalkulator(BaseAgent):
         gesamt = 0.0
 
         for pos in positionen:
+            menge = float(pos.get("menge", 0))
+            if menge <= 0:
+                warnungen.append(
+                    f"Pos {pos.get('pos_nr', '?')}: Menge ist 0 - Position uebersprungen"
+                )
+                continue
+
             ergebnis = self._kalkuliere_position(pos)
             materialliste.append(ergebnis["material"])
             gesamt += ergebnis["kosten"]

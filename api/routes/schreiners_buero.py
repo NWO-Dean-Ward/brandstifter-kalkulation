@@ -252,8 +252,11 @@ async def sb_csv_upload(
     safe_name = Path(datei.filename).name  # Nur Dateiname, kein Pfad
     if not safe_name or safe_name.startswith("."):
         raise HTTPException(status_code=400, detail="Ungueltiger Dateiname")
+    MAX_UPLOAD_SIZE = 50 * 1024 * 1024  # 50 MB
     ziel = import_dir / safe_name
     content = await datei.read()
+    if len(content) > MAX_UPLOAD_SIZE:
+        raise HTTPException(status_code=413, detail="Datei zu gross (max. 50 MB)")
     with open(str(ziel), "wb") as f:
         f.write(content)
 

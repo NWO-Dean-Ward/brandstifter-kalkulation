@@ -11,6 +11,8 @@ from datetime import datetime
 
 from fastapi import APIRouter, HTTPException
 
+import logging
+
 from api.database import get_db
 from api.models.schemas import (
     ProjektCreate,
@@ -19,6 +21,14 @@ from api.models.schemas import (
 )
 
 router = APIRouter(prefix="/api/projekte", tags=["Projekte"])
+logger = logging.getLogger(__name__)
+
+# Referenz auf Pipeline (fuer Auto-Learn)
+_pipeline = None
+
+def set_pipeline(pipeline) -> None:
+    global _pipeline
+    _pipeline = pipeline
 
 
 @router.get("/", response_model=list[ProjektResponse])
@@ -90,6 +100,11 @@ async def update_projekt(projekt_id: str, data: ProjektUpdate):
         set_clause = ", ".join(f"{k} = ?" for k in updates)
         values = list(updates.values()) + [projekt_id]
 
+        # Alten Status merken fuer Auto-Learn
+        cursor2 = await db.execute("SELECT status FROM projekte WHERE id = ?", (projekt_id,))
+        alter_status_row = await cursor2.fetchone()
+        alter_status = dict(alter_status_row).get("status", "") if alter_status_row else ""
+
         await db.execute(
             f"UPDATE projekte SET {set_clause} WHERE id = ?", values
         )
@@ -98,6 +113,109 @@ async def update_projekt(projekt_id: str, data: ProjektUpdate):
         cursor = await db.execute(
             "SELECT * FROM projekte WHERE id = ?", (projekt_id,)
         )
+        projekt = dict(await cursor.fetchone())
+
+        # Auto-Learn: Bei Statuswechsel zu abgeschlossen/beauftragt/verloren
+        neuer_status = updates.get("status", "")
+        lern_trigger = {"abgeschlossen", "beauftragt", "verloren"}
+        if neuer_status in lern_trigger and alter_status not in lern_trigger:
+            await _auto_learn(projekt_id, neuer_status)
+
+        return projekt
+
+
+async def _auto_learn(projekt_id: str, ergebnis: str) -> None:
+    """Speichert Projekt automatisch in der Lernhistorie bei Statuswechsel."""
+    if not _pipeline:
+        return
+    lern_agent = _pipeline.subagenten.get("lern_agent")
+    if not lern_agent:
+        return
+
+    try:
+        from agents.base_agent import AgentMessage
+        async with get_db() as db:
+            cursor = await db.execute(
+                "SELECT * FROM positionen WHERE projekt_id = ?", (projekt_id,)
+            )
+            positionen = [dict(r) for r in await cursor.fetchall()]
+
+        if not positionen:
+            return
+
+        # Ergebnis-Mapping
+        ergebnis_map = {"abgeschlossen": "beauftragt", "beauftragt": "beauftragt", "verloren": "verloren"}
+
+        msg = AgentMessage(
+            sender="api", receiver="lern_agent",
+            msg_type="projekt_speichern",
+            payload={
+                "positionen": positionen,
+                "ergebnis": ergebnis_map.get(ergebnis, ergebnis),
+            },
+            projekt_id=projekt_id,
+        )
+        await lern_agent.execute(msg)
+        logger.info("Auto-Learn: Projekt %s als '%s' gespeichert", projekt_id, ergebnis)
+    except Exception as e:
+        logger.warning("Auto-Learn fehlgeschlagen fuer %s: %s", projekt_id, e)
+
+
+@router.post("/{projekt_id}/kopieren", response_model=ProjektResponse, status_code=201)
+async def kopiere_projekt(projekt_id: str):
+    """Projekt duplizieren inkl. Positionen."""
+    async with get_db() as db:
+        cursor = await db.execute(
+            "SELECT * FROM projekte WHERE id = ?", (projekt_id,)
+        )
+        original = await cursor.fetchone()
+        if not original:
+            raise HTTPException(status_code=404, detail="Projekt nicht gefunden")
+
+        original = dict(original)
+        neues_id = f"PRJ-{uuid.uuid4().hex[:8].upper()}"
+        jetzt = datetime.now().isoformat()
+
+        await db.execute(
+            """INSERT INTO projekte
+               (id, name, projekt_typ, status, kunde, beschreibung, deadline,
+                erstellt_am, aktualisiert_am)
+               VALUES (?, ?, ?, 'entwurf', ?, ?, ?, ?, ?)""",
+            (
+                neues_id,
+                f"{original['name']} (Kopie)",
+                original["projekt_typ"],
+                original["kunde"],
+                original["beschreibung"],
+                original.get("deadline", ""),
+                jetzt, jetzt,
+            ),
+        )
+
+        # Positionen kopieren
+        cursor = await db.execute(
+            "SELECT * FROM positionen WHERE projekt_id = ?", (projekt_id,)
+        )
+        pos_rows = [dict(r) for r in await cursor.fetchall()]
+        for pos in pos_rows:
+            await db.execute(
+                """INSERT INTO positionen
+                   (projekt_id, pos_nr, kurztext, langtext, menge, einheit, material,
+                    platten_anzahl, kantenlaenge_lfm, schnittanzahl, bohrungen_anzahl,
+                    ist_lackierung)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (
+                    neues_id, pos["pos_nr"], pos["kurztext"], pos.get("langtext", ""),
+                    pos["menge"], pos["einheit"], pos.get("material", ""),
+                    pos.get("platten_anzahl", 0), pos.get("kantenlaenge_lfm", 0),
+                    pos.get("schnittanzahl", 0), pos.get("bohrungen_anzahl", 0),
+                    pos.get("ist_lackierung", 0),
+                ),
+            )
+
+        await db.commit()
+
+        cursor = await db.execute("SELECT * FROM projekte WHERE id = ?", (neues_id,))
         return dict(await cursor.fetchone())
 
 

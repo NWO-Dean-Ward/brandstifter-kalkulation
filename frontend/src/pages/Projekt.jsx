@@ -1,10 +1,19 @@
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { projekte, positionen, kalkulation, exporte, downloadBlob } from '../api'
+import { projekte, positionen, kalkulation, exporte, downloadBlob, werkstuecke, zukaufteile, ueberschreibungen } from '../api'
 
 function euro(val) {
   return new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(val || 0)
 }
+
+const STATUS_OPTIONS = [
+  { value: 'entwurf', label: 'Entwurf', color: 'bg-slate-500/20 text-slate-300' },
+  { value: 'kalkuliert', label: 'Kalkuliert', color: 'bg-blue-500/20 text-blue-300' },
+  { value: 'angeboten', label: 'Angeboten', color: 'bg-amber-500/20 text-amber-300' },
+  { value: 'beauftragt', label: 'Beauftragt', color: 'bg-green-500/20 text-green-300' },
+  { value: 'abgeschlossen', label: 'Abgeschlossen', color: 'bg-emerald-500/20 text-emerald-300' },
+  { value: 'verloren', label: 'Verloren', color: 'bg-red-500/20 text-red-300' },
+]
 
 export default function Projekt() {
   const { id } = useParams()
@@ -16,6 +25,9 @@ export default function Projekt() {
   const [calculating, setCalculating] = useState(false)
   const [exporting, setExporting] = useState({})
   const [error, setError] = useState(null)
+  const [activeTab, setActiveTab] = useState('positionen')
+  const [editingMeta, setEditingMeta] = useState(false)
+  const [meta, setMeta] = useState({})
 
   useEffect(() => {
     loadData()
@@ -43,10 +55,8 @@ export default function Projekt() {
     try {
       const res = await kalkulation.starten(id)
       setKalkResult(res)
-      // Projekt neu laden (Status hat sich geaendert)
       const p = await projekte.get(id)
       setProjekt(p)
-      // Positionen neu laden (Preise sind jetzt gesetzt)
       const pos = await positionen.liste(id)
       setPosList(pos)
     } catch (e) {
@@ -74,6 +84,30 @@ export default function Projekt() {
     }
   }
 
+  const handleStatusChange = async (newStatus) => {
+    try {
+      await projekte.update(id, { status: newStatus })
+      setProjekt(prev => ({ ...prev, status: newStatus }))
+    } catch (e) {
+      alert('Status-Fehler: ' + e.message)
+    }
+  }
+
+  const handleMetaSave = async () => {
+    try {
+      await projekte.update(id, meta)
+      setProjekt(prev => ({ ...prev, ...meta }))
+      setEditingMeta(false)
+    } catch (e) {
+      alert('Fehler: ' + e.message)
+    }
+  }
+
+  const startEditMeta = () => {
+    setMeta({ name: projekt.name, kunde: projekt.kunde || '', beschreibung: projekt.beschreibung || '' })
+    setEditingMeta(true)
+  }
+
   const handleDelete = async () => {
     if (!confirm('Projekt unwiderruflich loeschen?')) return
     try {
@@ -85,47 +119,112 @@ export default function Projekt() {
   }
 
   if (loading) return <div className="text-center py-12 text-slate-400">Lade Projekt...</div>
-  if (!projekt) return <div className="text-center py-12 text-red-500">{error || 'Projekt nicht gefunden'}</div>
+  if (!projekt) return <div className="text-center py-12 text-red-400">{error || 'Projekt nicht gefunden'}</div>
 
   const isKalkuliert = projekt.status === 'kalkuliert' || kalkResult
+  const tabs = [
+    { key: 'positionen', label: 'Positionen', count: posList.length },
+    { key: 'werkstuecke', label: 'Werkstuecke' },
+    { key: 'zukaufteile', label: 'Zukaufteile' },
+    { key: 'nachkalkulation', label: 'Nachkalkulation' },
+  ]
 
   return (
     <div className="max-w-5xl mx-auto">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-start justify-between mb-6">
         <div>
           <button
             onClick={() => navigate('/')}
-            className="text-sm text-slate-500 hover:text-slate-700 mb-1"
+            className="text-sm text-slate-400 hover:text-slate-200 mb-1"
           >
             &lt; Zurueck zum Dashboard
           </button>
-          <h1 className="text-2xl font-bold text-slate-800">{projekt.name}</h1>
-          <div className="flex items-center gap-3 mt-1">
-            <span className="text-sm text-slate-500">{projekt.id}</span>
-            <span className="text-sm text-slate-500">|</span>
-            <span className="text-sm text-slate-500">{projekt.kunde || 'Kein Kunde'}</span>
-            <span className="text-sm text-slate-500">|</span>
-            <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-              projekt.status === 'kalkuliert' ? 'bg-blue-100 text-blue-700' :
-              projekt.status === 'entwurf' ? 'bg-slate-100 text-slate-700' :
-              'bg-green-100 text-green-700'
-            }`}>
-              {projekt.status}
-            </span>
-          </div>
+          {editingMeta ? (
+            <div className="space-y-2">
+              <input value={meta.name} onChange={e => setMeta({...meta, name: e.target.value})}
+                className="text-2xl font-bold text-white bg-slate-800/60 border border-slate-600 rounded px-2 py-1 w-96 outline-none focus:ring-2 focus:ring-amber-500/50" />
+              <div className="flex gap-2">
+                <input value={meta.kunde} onChange={e => setMeta({...meta, kunde: e.target.value})}
+                  placeholder="Kunde" className="bg-slate-800/60 text-slate-200 border border-slate-600 rounded px-2 py-1 text-sm w-48 outline-none focus:ring-1 focus:ring-amber-500/50" />
+                <input value={meta.beschreibung} onChange={e => setMeta({...meta, beschreibung: e.target.value})}
+                  placeholder="Beschreibung" className="bg-slate-800/60 text-slate-200 border border-slate-600 rounded px-2 py-1 text-sm w-64 outline-none focus:ring-1 focus:ring-amber-500/50" />
+                <button onClick={handleMetaSave}
+                  className="bg-amber-600 text-white px-3 py-1 rounded text-sm font-medium">Speichern</button>
+                <button onClick={() => setEditingMeta(false)}
+                  className="text-slate-400 hover:text-slate-200 text-sm">Abbrechen</button>
+              </div>
+            </div>
+          ) : (
+            <>
+              <h1 className="text-2xl font-bold text-white cursor-pointer hover:text-amber-400 transition-colors"
+                onClick={startEditMeta} title="Klicken zum Bearbeiten">
+                {projekt.name}
+              </h1>
+              <div className="flex items-center gap-3 mt-1">
+                <span className="text-sm text-slate-400">{projekt.id}</span>
+                <span className="text-sm text-slate-400">|</span>
+                <span className="text-sm text-slate-400 cursor-pointer hover:text-slate-200" onClick={startEditMeta}>
+                  {projekt.kunde || 'Kein Kunde'}
+                </span>
+                <span className="text-sm text-slate-400">|</span>
+                {projekt.projekt_typ !== 'standard' && (
+                  <>
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                      projekt.projekt_typ === 'oeffentlich' ? 'bg-blue-500/20 text-blue-400' : 'bg-slate-500/20 text-slate-300'
+                    }`}>
+                      {projekt.projekt_typ === 'oeffentlich' ? 'VOB' : 'Privat'}
+                    </span>
+                    <span className="text-sm text-slate-400">|</span>
+                  </>
+                )}
+                {projekt.deadline && (
+                  <>
+                    <span className={`text-xs font-medium ${
+                      new Date(projekt.deadline) < new Date() ? 'text-red-400' :
+                      new Date(projekt.deadline) < new Date(Date.now() + 7 * 86400000) ? 'text-amber-500' :
+                      'text-slate-400'
+                    }`}>
+                      Frist: {new Date(projekt.deadline).toLocaleDateString('de-DE')}
+                    </span>
+                    <span className="text-sm text-slate-400">|</span>
+                  </>
+                )}
+                <select value={projekt.status} onChange={e => handleStatusChange(e.target.value)}
+                  className={`px-2 py-0.5 rounded-full text-xs font-medium border-0 cursor-pointer outline-none ${
+                    (STATUS_OPTIONS.find(s => s.value === projekt.status) || STATUS_OPTIONS[0]).color
+                  }`}>
+                  {STATUS_OPTIONS.map(s => (
+                    <option key={s.value} value={s.value}>{s.label}</option>
+                  ))}
+                </select>
+              </div>
+            </>
+          )}
         </div>
         <div className="flex gap-2">
           <button
             onClick={handleKalkulieren}
             disabled={calculating || posList.length === 0}
-            className="bg-orange-600 hover:bg-orange-700 disabled:bg-slate-300 text-white px-5 py-2 rounded-lg text-sm font-medium transition-colors"
+            className="bg-amber-600 hover:bg-amber-700 disabled:bg-slate-700 disabled:text-slate-500 text-white px-5 py-2 rounded-lg text-sm font-medium transition-colors"
           >
             {calculating ? 'Kalkuliere...' : 'Kalkulation starten'}
           </button>
           <button
+            onClick={async () => {
+              try {
+                const kopie = await projekte.kopieren(id)
+                navigate(`/projekt/${kopie.id}`)
+              } catch (e) { alert('Fehler: ' + e.message) }
+            }}
+            className="border border-slate-600 hover:border-amber-400 text-slate-300 px-3 py-2 rounded-lg text-sm transition-colors"
+            title="Projekt duplizieren"
+          >
+            Kopieren
+          </button>
+          <button
             onClick={handleDelete}
-            className="text-slate-400 hover:text-red-500 px-3 py-2 text-sm transition-colors"
+            className="text-slate-400 hover:text-red-400 px-3 py-2 text-sm transition-colors"
             title="Projekt loeschen"
           >
             X Loeschen
@@ -134,99 +233,880 @@ export default function Projekt() {
       </div>
 
       {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-3 mb-4 text-sm">
+        <div className="bg-red-500/10 border border-red-500/30 text-red-400 rounded-lg px-4 py-3 mb-4 text-sm">
           {error}
         </div>
       )}
 
       {/* Kalkulations-Ergebnis */}
       {(kalkResult || projekt.angebotspreis > 0) && (
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 mb-4">
-          <h2 className="font-semibold text-slate-700 mb-4">Kalkulationsergebnis</h2>
+        <div className="glass-card p-6 mb-4">
+          <h2 className="font-semibold text-slate-200 mb-4">Kalkulationsergebnis</h2>
           <KalkUebersicht kalk={kalkResult} projekt={projekt} />
 
-          {/* Warnungen */}
           {kalkResult?.warnungen?.length > 0 && (
             <div className="mt-4 space-y-1">
               {kalkResult.warnungen.map((w, i) => (
-                <div key={i} className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded px-3 py-2">
+                <div key={i} className="text-sm text-amber-300 bg-amber-500/10 border border-amber-500/30 rounded px-3 py-2">
                   {w}
                 </div>
               ))}
             </div>
           )}
 
-          {/* Export-Buttons */}
-          <div className="mt-6 pt-4 border-t border-slate-100">
-            <h3 className="text-sm font-medium text-slate-600 mb-3">Exportieren</h3>
+          <div className="mt-6 pt-4 border-t border-slate-700/30">
+            <h3 className="text-sm font-medium text-slate-300 mb-3">Exportieren</h3>
             <div className="flex gap-2 flex-wrap">
-              <ExportButton
-                label="Angebots-PDF"
-                loading={exporting['angebot-pdf']}
-                onClick={() => handleExport('angebot-pdf', `Angebot_${projekt.name}.pdf`)}
-              />
-              <ExportButton
-                label="Interne Kalkulation"
-                loading={exporting['intern-pdf']}
-                onClick={() => handleExport('intern-pdf', `Kalkulation_${projekt.name}.pdf`)}
-              />
-              <ExportButton
-                label="Excel"
-                loading={exporting['excel']}
-                onClick={() => handleExport('excel', `Kalkulation_${projekt.name}.xlsx`)}
-              />
-              <ExportButton
-                label="GAEB X83"
-                loading={exporting['gaeb']}
-                onClick={() => handleExport('gaeb', `Angebot_${projekt.name}.x83`)}
-              />
+              <ExportButton label="Angebots-PDF" loading={exporting['angebot-pdf']}
+                onClick={() => handleExport('angebot-pdf', `Angebot_${projekt.name}.pdf`)} />
+              <ExportButton label="Interne Kalkulation" loading={exporting['intern-pdf']}
+                onClick={() => handleExport('intern-pdf', `Kalkulation_${projekt.name}.pdf`)} />
+              <ExportButton label="Excel" loading={exporting['excel']}
+                onClick={() => handleExport('excel', `Kalkulation_${projekt.name}.xlsx`)} />
+              <ExportButton label="GAEB X83" loading={exporting['gaeb']}
+                onClick={() => handleExport('gaeb', `Angebot_${projekt.name}.x83`)} />
             </div>
           </div>
         </div>
       )}
 
-      {/* Positionsliste */}
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="px-5 py-4 border-b border-slate-100">
-          <h2 className="font-semibold text-slate-700">Positionen ({posList.length})</h2>
+      {/* Tab-Navigation */}
+      <div className="border-b border-slate-700/50 mb-4">
+        <div className="flex gap-0">
+          {tabs.map(tab => (
+            <button
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key)}
+              className={`px-5 py-3 text-sm font-medium border-b-2 transition-colors ${
+                activeTab === tab.key
+                  ? 'border-amber-500 text-amber-400'
+                  : 'border-transparent text-slate-400 hover:text-slate-200 hover:border-slate-600'
+              }`}
+            >
+              {tab.label}
+              {tab.count !== undefined && (
+                <span className="ml-1.5 text-xs bg-slate-800/60 text-slate-300 rounded-full px-2 py-0.5">
+                  {tab.count}
+                </span>
+              )}
+            </button>
+          ))}
         </div>
-        {posList.length === 0 ? (
-          <div className="p-8 text-center text-slate-400">Keine Positionen vorhanden</div>
-        ) : (
-          <table className="w-full">
-            <thead>
-              <tr className="text-left text-xs text-slate-500 uppercase tracking-wider">
-                <th className="px-5 py-3">Pos</th>
-                <th className="px-5 py-3">Beschreibung</th>
-                <th className="px-5 py-3 text-right">Menge</th>
-                <th className="px-5 py-3">Einheit</th>
-                <th className="px-5 py-3">Material</th>
-                <th className="px-5 py-3 text-right">EP</th>
-                <th className="px-5 py-3 text-right">GP</th>
-                <th className="px-5 py-3 text-center">Lack.</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {posList.map(p => (
-                <tr key={p.id} className="hover:bg-slate-50">
-                  <td className="px-5 py-3 text-sm font-mono text-slate-600">{p.pos_nr}</td>
-                  <td className="px-5 py-3 text-sm text-slate-800">{p.kurztext}</td>
-                  <td className="px-5 py-3 text-sm text-right text-slate-600">{p.menge}</td>
-                  <td className="px-5 py-3 text-sm text-slate-600">{p.einheit}</td>
-                  <td className="px-5 py-3 text-sm text-slate-600">{p.material || '-'}</td>
-                  <td className="px-5 py-3 text-sm text-right text-slate-700">
+      </div>
+
+      {/* Tab-Inhalt */}
+      {activeTab === 'positionen' && (
+        <PositionenTab posList={posList} projektId={id} onReload={loadData} />
+      )}
+      {activeTab === 'werkstuecke' && (
+        <WerkstueckeTab projektId={id} posList={posList} />
+      )}
+      {activeTab === 'zukaufteile' && (
+        <ZukaufteileTab projektId={id} posList={posList} />
+      )}
+      {activeTab === 'nachkalkulation' && (
+        <NachkalkulationTab projektId={id} posList={posList} onReload={loadData} />
+      )}
+    </div>
+  )
+}
+
+// === POSITIONEN TAB ===
+function PositionenTab({ posList, projektId, onReload }) {
+  const [showForm, setShowForm] = useState(false)
+  const [editId, setEditId] = useState(null)
+  const [editData, setEditData] = useState({})
+  const [expandedId, setExpandedId] = useState(null)
+  const [form, setForm] = useState({
+    pos_nr: '', kurztext: '', menge: 1, einheit: 'STK', material: '',
+  })
+
+  const handleAdd = async (e) => {
+    e.preventDefault()
+    try {
+      await positionen.erstellen(projektId, form)
+      setShowForm(false)
+      setForm({ pos_nr: '', kurztext: '', menge: 1, einheit: 'STK', material: '' })
+      onReload()
+    } catch (err) {
+      alert('Fehler: ' + err.message)
+    }
+  }
+
+  const handleDelete = async (posId) => {
+    if (!confirm('Position loeschen?')) return
+    try {
+      await positionen.loeschen(projektId, posId)
+      onReload()
+    } catch (err) {
+      alert('Fehler: ' + err.message)
+    }
+  }
+
+  const startEdit = (p) => {
+    setEditId(p.id)
+    setEditData({ kurztext: p.kurztext || '', menge: p.menge, einheit: p.einheit, material: p.material || '' })
+  }
+
+  const cancelEdit = () => { setEditId(null); setEditData({}) }
+
+  const saveEdit = async (posId) => {
+    try {
+      await positionen.update(projektId, posId, editData)
+      setEditId(null)
+      onReload()
+    } catch (err) {
+      alert('Fehler: ' + err.message)
+    }
+  }
+
+  const handleKeyDown = (e, posId) => {
+    if (e.key === 'Enter') saveEdit(posId)
+    if (e.key === 'Escape') cancelEdit()
+  }
+
+  // Summen
+  const summeGP = posList.reduce((s, p) => s + (p.gesamtpreis || 0), 0)
+
+  return (
+    <div className="glass-card overflow-hidden">
+      <div className="px-5 py-4 border-b border-slate-700/30 flex justify-between items-center">
+        <h2 className="font-semibold text-slate-200">Positionen ({posList.length})</h2>
+        <button onClick={() => setShowForm(!showForm)}
+          className="bg-amber-600 hover:bg-amber-700 text-white px-4 py-1.5 rounded-lg text-sm font-medium">
+          {showForm ? 'Abbrechen' : '+ Position'}
+        </button>
+      </div>
+
+      {showForm && (
+        <form onSubmit={handleAdd} className="p-5 bg-slate-800/40 border-b border-slate-700/50">
+          <div className="grid grid-cols-5 gap-3">
+            <div>
+              <label className="text-xs text-slate-400">Pos-Nr. *</label>
+              <input type="text" required value={form.pos_nr}
+                onChange={e => setForm({...form, pos_nr: e.target.value})}
+                placeholder="01.01"
+                className="w-full bg-slate-800/60 text-slate-200 border border-slate-600 rounded px-3 py-1.5 text-sm" />
+            </div>
+            <div className="col-span-2">
+              <label className="text-xs text-slate-400">Kurztext</label>
+              <input type="text" value={form.kurztext}
+                onChange={e => setForm({...form, kurztext: e.target.value})}
+                placeholder="Beschreibung..."
+                className="w-full bg-slate-800/60 text-slate-200 border border-slate-600 rounded px-3 py-1.5 text-sm" />
+            </div>
+            <div>
+              <label className="text-xs text-slate-400">Menge</label>
+              <input type="number" step="0.01" min="0" value={form.menge}
+                onChange={e => setForm({...form, menge: parseFloat(e.target.value) || 0})}
+                className="w-full bg-slate-800/60 text-slate-200 border border-slate-600 rounded px-3 py-1.5 text-sm" />
+            </div>
+            <div>
+              <label className="text-xs text-slate-400">Einheit</label>
+              <select value={form.einheit} onChange={e => setForm({...form, einheit: e.target.value})}
+                className="w-full bg-slate-800/60 text-slate-200 border border-slate-600 rounded px-3 py-1.5 text-sm">
+                <option>STK</option><option>m</option><option>m2</option>
+                <option>lfm</option><option>psch</option><option>kg</option>
+              </select>
+            </div>
+          </div>
+          <div className="mt-2">
+            <label className="text-xs text-slate-400">Material</label>
+            <input type="text" value={form.material}
+              onChange={e => setForm({...form, material: e.target.value})}
+              placeholder="Spanplatte, MDF..."
+              className="w-64 bg-slate-800/60 text-slate-200 border border-slate-600 rounded px-3 py-1.5 text-sm" />
+          </div>
+          <button type="submit"
+            className="mt-3 bg-amber-600 hover:bg-amber-700 text-white px-5 py-2 rounded-lg text-sm font-medium">
+            Speichern
+          </button>
+        </form>
+      )}
+
+      {posList.length === 0 && !showForm ? (
+        <div className="p-8 text-center text-slate-400">Keine Positionen vorhanden</div>
+      ) : (
+        <table className="w-full">
+          <thead>
+            <tr className="text-left text-xs text-slate-400 uppercase tracking-wider">
+              <th className="px-5 py-3">Pos</th>
+              <th className="px-5 py-3">Beschreibung</th>
+              <th className="px-5 py-3 text-right">Menge</th>
+              <th className="px-5 py-3">Einheit</th>
+              <th className="px-5 py-3">Material</th>
+              <th className="px-5 py-3 text-right">EP</th>
+              <th className="px-5 py-3 text-right">GP</th>
+              <th className="px-5 py-3 text-center">Lack.</th>
+              <th className="px-5 py-3"></th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-700/30">
+            {posList.map(p => (
+              editId === p.id ? (
+                <tr key={p.id} className="bg-amber-500/10">
+                  <td className="px-5 py-2 text-sm font-mono text-slate-300">{p.pos_nr}</td>
+                  <td className="px-5 py-2">
+                    <input value={editData.kurztext} onChange={e => setEditData({...editData, kurztext: e.target.value})}
+                      onKeyDown={e => handleKeyDown(e, p.id)}
+                      className="w-full bg-slate-800/60 text-slate-200 border border-amber-500/50 rounded px-2 py-1 text-sm outline-none focus:ring-1 focus:ring-amber-500/50" autoFocus />
+                  </td>
+                  <td className="px-5 py-2">
+                    <input type="number" step="0.01" value={editData.menge}
+                      onChange={e => setEditData({...editData, menge: parseFloat(e.target.value) || 0})}
+                      onKeyDown={e => handleKeyDown(e, p.id)}
+                      className="w-20 bg-slate-800/60 text-slate-200 border border-amber-500/50 rounded px-2 py-1 text-sm text-right outline-none focus:ring-1 focus:ring-amber-500/50" />
+                  </td>
+                  <td className="px-5 py-2">
+                    <select value={editData.einheit} onChange={e => setEditData({...editData, einheit: e.target.value})}
+                      className="bg-slate-800/60 text-slate-200 border border-amber-500/50 rounded px-2 py-1 text-sm outline-none">
+                      <option>STK</option><option>m</option><option>m2</option>
+                      <option>lfm</option><option>psch</option><option>kg</option>
+                    </select>
+                  </td>
+                  <td className="px-5 py-2">
+                    <input value={editData.material} onChange={e => setEditData({...editData, material: e.target.value})}
+                      onKeyDown={e => handleKeyDown(e, p.id)}
+                      className="w-full bg-slate-800/60 text-slate-200 border border-amber-500/50 rounded px-2 py-1 text-sm outline-none focus:ring-1 focus:ring-amber-500/50" />
+                  </td>
+                  <td className="px-5 py-2 text-sm text-right text-slate-400">{p.einheitspreis ? euro(p.einheitspreis) : '-'}</td>
+                  <td className="px-5 py-2 text-sm text-right text-slate-400">{p.gesamtpreis ? euro(p.gesamtpreis) : '-'}</td>
+                  <td className="px-5 py-2"></td>
+                  <td className="px-5 py-2 text-right">
+                    <button onClick={() => saveEdit(p.id)} className="text-xs text-green-400 hover:text-green-300 mr-2 font-medium">OK</button>
+                    <button onClick={cancelEdit} className="text-xs text-slate-400 hover:text-slate-300">Abb.</button>
+                  </td>
+                </tr>
+              ) : (
+                <React.Fragment key={p.id}>
+                <tr className="hover:bg-slate-700/30 cursor-pointer" onDoubleClick={() => startEdit(p)}>
+                  <td className="px-5 py-3 text-sm font-mono text-slate-300">{p.pos_nr}</td>
+                  <td className="px-5 py-3 text-sm text-white">{p.kurztext}</td>
+                  <td className="px-5 py-3 text-sm text-right text-slate-300">{p.menge}</td>
+                  <td className="px-5 py-3 text-sm text-slate-300">{p.einheit}</td>
+                  <td className="px-5 py-3 text-sm text-slate-300">{p.material || '-'}</td>
+                  <td className="px-5 py-3 text-sm text-right text-slate-200">
                     {p.einheitspreis ? euro(p.einheitspreis) : '-'}
                   </td>
-                  <td className="px-5 py-3 text-sm text-right font-medium text-slate-800">
+                  <td className="px-5 py-3 text-sm text-right font-medium text-white cursor-pointer hover:text-amber-400"
+                    onClick={() => setExpandedId(expandedId === p.id ? null : p.id)}
+                    title="Klicken fuer Kostendetails">
                     {p.gesamtpreis ? euro(p.gesamtpreis) : '-'}
                   </td>
                   <td className="px-5 py-3 text-center">
                     {p.ist_lackierung && (
-                      <span className="px-2 py-0.5 rounded-full text-xs bg-purple-100 text-purple-700 font-medium">
+                      <span className="px-2 py-0.5 rounded-full text-xs bg-purple-500/20 text-purple-300 font-medium">
                         Lack
                       </span>
                     )}
                   </td>
+                  <td className="px-5 py-3 text-right">
+                    <button onClick={() => startEdit(p)} className="text-xs text-slate-400 hover:text-amber-400 mr-2" title="Bearbeiten">Ed</button>
+                    <button onClick={() => handleDelete(p.id)}
+                      className="text-xs text-slate-400 hover:text-red-400" title="Loeschen">X</button>
+                  </td>
+                </tr>
+                {expandedId === p.id && p.gesamtpreis > 0 && (
+                  <tr className="bg-slate-800/40">
+                    <td></td>
+                    <td colSpan={8} className="px-5 py-2">
+                      <div className="flex gap-6 text-xs text-slate-300">
+                        <span>Material: <b className="text-slate-200">{euro(p.materialkosten || 0)}</b></span>
+                        <span>Maschinen: <b className="text-slate-200">{euro(p.maschinenkosten || 0)}</b></span>
+                        <span>Lohn: <b className="text-slate-200">{euro(p.lohnkosten || 0)}</b></span>
+                        {(p.fremdleistungskosten || 0) > 0 && (
+                          <span>Fremdleistung: <b className="text-purple-300">{euro(p.fremdleistungskosten)}</b></span>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                )}
+                </React.Fragment>
+              )
+            ))}
+          </tbody>
+        </table>
+      )}
+
+      {posList.length > 0 && (
+        <div className="px-5 py-3 bg-slate-800/40 border-t border-slate-700/50 flex justify-between text-sm">
+          <span className="text-slate-400 text-xs">Doppelklick auf eine Zeile zum Bearbeiten</span>
+          <span className="font-medium text-slate-200">Summe GP: {euro(summeGP)}</span>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// === WERKSTUECKE TAB ===
+function WerkstueckeTab({ projektId, posList = [] }) {
+  const [items, setItems] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [showForm, setShowForm] = useState(false)
+  const [form, setForm] = useState({
+    bezeichnung: '', anzahl: 1, position_id: '',
+    laenge_mm: 0, breite_mm: 0, tiefe_mm: 0, staerke_mm: 0,
+    material: '', oberflaeche: '', fertigung: 'cnc-nesting',
+    hop_datei: '', notizen: '',
+  })
+
+  useEffect(() => { loadItems() }, [projektId])
+
+  const loadItems = async () => {
+    setLoading(true)
+    try {
+      const data = await werkstuecke.liste(projektId)
+      setItems(data)
+    } catch (e) {
+      console.error('Werkstuecke laden:', e)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    try {
+      const payload = { ...form }
+      if (payload.position_id) payload.position_id = parseInt(payload.position_id)
+      else delete payload.position_id
+      await werkstuecke.erstellen(projektId, payload)
+      setShowForm(false)
+      setForm({ bezeichnung: '', anzahl: 1, position_id: '', laenge_mm: 0, breite_mm: 0, tiefe_mm: 0, staerke_mm: 0, material: '', oberflaeche: '', fertigung: 'cnc-nesting', hop_datei: '', notizen: '' })
+      loadItems()
+    } catch (e) {
+      alert('Fehler: ' + e.message)
+    }
+  }
+
+  const handleDelete = async (wsId) => {
+    if (!confirm('Werkstueck loeschen?')) return
+    try {
+      await werkstuecke.loeschen(projektId, wsId)
+      loadItems()
+    } catch (e) {
+      alert('Fehler: ' + e.message)
+    }
+  }
+
+  const materialOptions = ['Spanplatte', 'MDF', 'Multiplex', 'Massivholz', 'Mineralwerkstoff', 'Sonstige']
+  const oberflaecheOptions = ['Melamin', 'Folie', 'Echtholzfurnier', 'Mineralwerkstoff', 'Lackiert-extern']
+  const fertigungOptions = [
+    { value: 'cnc-nesting', label: 'CNC-Nesting' },
+    { value: 'handfertigung', label: 'Handfertigung' },
+    { value: 'zukauf', label: 'Zukauf' },
+  ]
+
+  if (loading) return <div className="text-center py-8 text-slate-400">Lade...</div>
+
+  return (
+    <div className="glass-card overflow-hidden">
+      <div className="px-5 py-4 border-b border-slate-700/30 flex justify-between items-center">
+        <h2 className="font-semibold text-slate-200">Werkstuecke ({items.length})</h2>
+        <button onClick={() => setShowForm(!showForm)}
+          className="bg-amber-600 hover:bg-amber-700 text-white px-4 py-1.5 rounded-lg text-sm font-medium">
+          {showForm ? 'Abbrechen' : '+ Neu'}
+        </button>
+      </div>
+
+      {showForm && (
+        <form onSubmit={handleSubmit} className="p-5 bg-slate-800/40 border-b border-slate-700/50">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div className="col-span-2">
+              <label className="text-xs text-slate-400">Bezeichnung *</label>
+              <input type="text" required value={form.bezeichnung}
+                onChange={e => setForm({...form, bezeichnung: e.target.value})}
+                className="w-full bg-slate-800/60 text-slate-200 border border-slate-600 rounded px-3 py-1.5 text-sm" />
+            </div>
+            <div>
+              <label className="text-xs text-slate-400">Position</label>
+              <select value={form.position_id} onChange={e => setForm({...form, position_id: e.target.value})}
+                className="w-full bg-slate-800/60 text-slate-200 border border-slate-600 rounded px-3 py-1.5 text-sm">
+                <option value="">-- Alle --</option>
+                {posList.map(p => <option key={p.id} value={p.id}>Pos {p.pos_nr}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="text-xs text-slate-400">Anzahl</label>
+              <input type="number" min="1" value={form.anzahl}
+                onChange={e => setForm({...form, anzahl: parseInt(e.target.value) || 1})}
+                className="w-full bg-slate-800/60 text-slate-200 border border-slate-600 rounded px-3 py-1.5 text-sm" />
+            </div>
+            <div>
+              <label className="text-xs text-slate-400">Staerke (mm)</label>
+              <input type="number" step="0.1" value={form.staerke_mm}
+                onChange={e => setForm({...form, staerke_mm: parseFloat(e.target.value) || 0})}
+                className="w-full bg-slate-800/60 text-slate-200 border border-slate-600 rounded px-3 py-1.5 text-sm" />
+            </div>
+            <div>
+              <label className="text-xs text-slate-400">Laenge (mm)</label>
+              <input type="number" step="0.1" value={form.laenge_mm}
+                onChange={e => setForm({...form, laenge_mm: parseFloat(e.target.value) || 0})}
+                className="w-full bg-slate-800/60 text-slate-200 border border-slate-600 rounded px-3 py-1.5 text-sm" />
+            </div>
+            <div>
+              <label className="text-xs text-slate-400">Breite (mm)</label>
+              <input type="number" step="0.1" value={form.breite_mm}
+                onChange={e => setForm({...form, breite_mm: parseFloat(e.target.value) || 0})}
+                className="w-full bg-slate-800/60 text-slate-200 border border-slate-600 rounded px-3 py-1.5 text-sm" />
+            </div>
+            <div>
+              <label className="text-xs text-slate-400">Tiefe (mm)</label>
+              <input type="number" step="0.1" value={form.tiefe_mm}
+                onChange={e => setForm({...form, tiefe_mm: parseFloat(e.target.value) || 0})}
+                className="w-full bg-slate-800/60 text-slate-200 border border-slate-600 rounded px-3 py-1.5 text-sm" />
+            </div>
+            <div>
+              <label className="text-xs text-slate-400">Material</label>
+              <select value={form.material} onChange={e => setForm({...form, material: e.target.value})}
+                className="w-full bg-slate-800/60 text-slate-200 border border-slate-600 rounded px-3 py-1.5 text-sm">
+                <option value="">-- Waehlen --</option>
+                {materialOptions.map(m => <option key={m} value={m}>{m}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="text-xs text-slate-400">Oberflaeche</label>
+              <select value={form.oberflaeche} onChange={e => setForm({...form, oberflaeche: e.target.value})}
+                className="w-full bg-slate-800/60 text-slate-200 border border-slate-600 rounded px-3 py-1.5 text-sm">
+                <option value="">-- Waehlen --</option>
+                {oberflaecheOptions.map(o => <option key={o} value={o}>{o}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="text-xs text-slate-400">Fertigung</label>
+              <select value={form.fertigung} onChange={e => setForm({...form, fertigung: e.target.value})}
+                className="w-full bg-slate-800/60 text-slate-200 border border-slate-600 rounded px-3 py-1.5 text-sm">
+                {fertigungOptions.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
+              </select>
+            </div>
+            <div className="col-span-2">
+              <label className="text-xs text-slate-400">Notizen</label>
+              <input type="text" value={form.notizen}
+                onChange={e => setForm({...form, notizen: e.target.value})}
+                className="w-full bg-slate-800/60 text-slate-200 border border-slate-600 rounded px-3 py-1.5 text-sm" />
+            </div>
+          </div>
+          {form.oberflaeche === 'Lackiert-extern' && (
+            <div className="mt-2 text-xs text-purple-300 bg-purple-500/10 rounded px-3 py-1.5">
+              Automatisch als Fremdleistung markiert (externe Lackierung)
+            </div>
+          )}
+          <button type="submit"
+            className="mt-3 bg-amber-600 hover:bg-amber-700 text-white px-5 py-2 rounded-lg text-sm font-medium">
+            Speichern
+          </button>
+        </form>
+      )}
+
+      {items.length === 0 && !showForm ? (
+        <div className="p-8 text-center text-slate-400">Keine Werkstuecke vorhanden</div>
+      ) : (
+        <table className="w-full">
+          <thead>
+            <tr className="text-left text-xs text-slate-400 uppercase tracking-wider">
+              <th className="px-5 py-3">Bezeichnung</th>
+              <th className="px-5 py-3 text-right">Anz.</th>
+              <th className="px-5 py-3 text-right">L x B x T</th>
+              <th className="px-5 py-3">Material</th>
+              <th className="px-5 py-3">Oberfl.</th>
+              <th className="px-5 py-3">Fertigung</th>
+              <th className="px-5 py-3 text-center">FL</th>
+              <th className="px-5 py-3"></th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-700/30">
+            {items.map(ws => (
+              <tr key={ws.id} className="hover:bg-slate-700/30">
+                <td className="px-5 py-3 text-sm text-white">{ws.bezeichnung}</td>
+                <td className="px-5 py-3 text-sm text-right text-slate-300">{ws.anzahl}</td>
+                <td className="px-5 py-3 text-sm text-right text-slate-300 font-mono">
+                  {ws.laenge_mm} x {ws.breite_mm} x {ws.tiefe_mm}
+                </td>
+                <td className="px-5 py-3 text-sm text-slate-300">{ws.material || '-'}</td>
+                <td className="px-5 py-3 text-sm text-slate-300">{ws.oberflaeche || '-'}</td>
+                <td className="px-5 py-3 text-sm text-slate-300">{ws.fertigung}</td>
+                <td className="px-5 py-3 text-center">
+                  {ws.ist_fremdleistung && (
+                    <span className="px-2 py-0.5 rounded-full text-xs bg-purple-500/20 text-purple-300">FL</span>
+                  )}
+                </td>
+                <td className="px-5 py-3 text-right">
+                  <button onClick={() => handleDelete(ws.id)}
+                    className="text-xs text-slate-400 hover:text-red-400">X</button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </div>
+  )
+}
+
+// === ZUKAUFTEILE TAB ===
+function ZukaufteileTab({ projektId, posList = [] }) {
+  const [items, setItems] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [showForm, setShowForm] = useState(false)
+  const [form, setForm] = useState({
+    bezeichnung: '', hersteller: '', produkt: '', artikel_nr: '',
+    produkt_link: '', einkaufspreis: 0, menge: 1, aufschlag_prozent: 15.0,
+    status: 'ausstehend', quelle: 'manuell', position_id: '',
+  })
+
+  useEffect(() => { loadItems() }, [projektId])
+
+  const loadItems = async () => {
+    setLoading(true)
+    try {
+      const data = await zukaufteile.liste(projektId)
+      setItems(data)
+    } catch (e) {
+      console.error('Zukaufteile laden:', e)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    try {
+      const payload = { ...form }
+      if (payload.position_id) payload.position_id = parseInt(payload.position_id)
+      else delete payload.position_id
+      await zukaufteile.erstellen(projektId, payload)
+      setShowForm(false)
+      setForm({ bezeichnung: '', hersteller: '', produkt: '', artikel_nr: '', produkt_link: '', einkaufspreis: 0, menge: 1, aufschlag_prozent: 15.0, status: 'ausstehend', quelle: 'manuell', position_id: '' })
+      loadItems()
+    } catch (e) {
+      alert('Fehler: ' + e.message)
+    }
+  }
+
+  const handleDelete = async (ztId) => {
+    if (!confirm('Zukaufteil loeschen?')) return
+    try {
+      await zukaufteile.loeschen(projektId, ztId)
+      loadItems()
+    } catch (e) {
+      alert('Fehler: ' + e.message)
+    }
+  }
+
+  const statusColors = {
+    ausstehend: 'bg-slate-500/20 text-slate-300',
+    angefragt: 'bg-yellow-500/20 text-yellow-300',
+    bestellt: 'bg-blue-500/20 text-blue-300',
+    geliefert: 'bg-green-500/20 text-green-300',
+    recherchiert: 'bg-purple-500/20 text-purple-300',
+  }
+
+  const verkaufspreis = form.einkaufspreis * form.menge * (1 + form.aufschlag_prozent / 100)
+
+  if (loading) return <div className="text-center py-8 text-slate-400">Lade...</div>
+
+  return (
+    <div className="glass-card overflow-hidden">
+      <div className="px-5 py-4 border-b border-slate-700/30 flex justify-between items-center">
+        <h2 className="font-semibold text-slate-200">Zukaufteile ({items.length})</h2>
+        <button onClick={() => setShowForm(!showForm)}
+          className="bg-amber-600 hover:bg-amber-700 text-white px-4 py-1.5 rounded-lg text-sm font-medium">
+          {showForm ? 'Abbrechen' : '+ Neu'}
+        </button>
+      </div>
+
+      {showForm && (
+        <form onSubmit={handleSubmit} className="p-5 bg-slate-800/40 border-b border-slate-700/50">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div>
+              <label className="text-xs text-slate-400">Position</label>
+              <select value={form.position_id} onChange={e => setForm({...form, position_id: e.target.value})}
+                className="w-full bg-slate-800/60 text-slate-200 border border-slate-600 rounded px-3 py-1.5 text-sm">
+                <option value="">-- Alle --</option>
+                {posList.map(p => <option key={p.id} value={p.id}>Pos {p.pos_nr}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="text-xs text-slate-400">Bezeichnung *</label>
+              <input type="text" required value={form.bezeichnung}
+                onChange={e => setForm({...form, bezeichnung: e.target.value})}
+                className="w-full bg-slate-800/60 text-slate-200 border border-slate-600 rounded px-3 py-1.5 text-sm" />
+            </div>
+            <div>
+              <label className="text-xs text-slate-400">Hersteller</label>
+              <input type="text" value={form.hersteller}
+                onChange={e => setForm({...form, hersteller: e.target.value})}
+                className="w-full bg-slate-800/60 text-slate-200 border border-slate-600 rounded px-3 py-1.5 text-sm" />
+            </div>
+            <div>
+              <label className="text-xs text-slate-400">Artikel-Nr.</label>
+              <input type="text" value={form.artikel_nr}
+                onChange={e => setForm({...form, artikel_nr: e.target.value})}
+                className="w-full bg-slate-800/60 text-slate-200 border border-slate-600 rounded px-3 py-1.5 text-sm" />
+            </div>
+            <div className="col-span-2">
+              <label className="text-xs text-slate-400">Produkt</label>
+              <input type="text" value={form.produkt}
+                onChange={e => setForm({...form, produkt: e.target.value})}
+                className="w-full bg-slate-800/60 text-slate-200 border border-slate-600 rounded px-3 py-1.5 text-sm" />
+            </div>
+            <div className="col-span-2">
+              <label className="text-xs text-slate-400">Produkt-Link</label>
+              <input type="url" value={form.produkt_link}
+                onChange={e => setForm({...form, produkt_link: e.target.value})}
+                className="w-full bg-slate-800/60 text-slate-200 border border-slate-600 rounded px-3 py-1.5 text-sm" />
+            </div>
+            <div>
+              <label className="text-xs text-slate-400">Einkaufspreis (netto)</label>
+              <input type="number" step="0.01" min="0" value={form.einkaufspreis}
+                onChange={e => setForm({...form, einkaufspreis: parseFloat(e.target.value) || 0})}
+                className="w-full bg-slate-800/60 text-slate-200 border border-slate-600 rounded px-3 py-1.5 text-sm" />
+            </div>
+            <div>
+              <label className="text-xs text-slate-400">Menge</label>
+              <input type="number" step="0.01" min="0.01" value={form.menge}
+                onChange={e => setForm({...form, menge: parseFloat(e.target.value) || 1})}
+                className="w-full bg-slate-800/60 text-slate-200 border border-slate-600 rounded px-3 py-1.5 text-sm" />
+            </div>
+            <div>
+              <label className="text-xs text-slate-400">Aufschlag %</label>
+              <input type="number" step="0.1" value={form.aufschlag_prozent}
+                onChange={e => setForm({...form, aufschlag_prozent: parseFloat(e.target.value) || 0})}
+                className="w-full bg-slate-800/60 text-slate-200 border border-slate-600 rounded px-3 py-1.5 text-sm" />
+            </div>
+            <div>
+              <label className="text-xs text-slate-400">= Verkaufspreis</label>
+              <div className="border border-slate-700/50 bg-slate-800/60 rounded px-3 py-1.5 text-sm font-medium text-green-400">
+                {euro(verkaufspreis)}
+              </div>
+            </div>
+            <div>
+              <label className="text-xs text-slate-400">Status</label>
+              <select value={form.status} onChange={e => setForm({...form, status: e.target.value})}
+                className="w-full bg-slate-800/60 text-slate-200 border border-slate-600 rounded px-3 py-1.5 text-sm">
+                <option value="ausstehend">Ausstehend</option>
+                <option value="angefragt">Angefragt</option>
+                <option value="bestellt">Bestellt</option>
+                <option value="geliefert">Geliefert</option>
+              </select>
+            </div>
+            <div>
+              <label className="text-xs text-slate-400">Quelle</label>
+              <select value={form.quelle} onChange={e => setForm({...form, quelle: e.target.value})}
+                className="w-full bg-slate-800/60 text-slate-200 border border-slate-600 rounded px-3 py-1.5 text-sm">
+                <option value="manuell">Manuell</option>
+                <option value="haefele">Haefele</option>
+                <option value="blum">Blum</option>
+                <option value="egger">Egger</option>
+                <option value="amazon">Amazon</option>
+              </select>
+            </div>
+          </div>
+          <button type="submit"
+            className="mt-3 bg-amber-600 hover:bg-amber-700 text-white px-5 py-2 rounded-lg text-sm font-medium">
+            Speichern
+          </button>
+        </form>
+      )}
+
+      {items.length === 0 && !showForm ? (
+        <div className="p-8 text-center text-slate-400">Keine Zukaufteile vorhanden</div>
+      ) : (
+        <table className="w-full">
+          <thead>
+            <tr className="text-left text-xs text-slate-400 uppercase tracking-wider">
+              <th className="px-5 py-3">Bezeichnung</th>
+              <th className="px-5 py-3">Hersteller</th>
+              <th className="px-5 py-3">Art.-Nr.</th>
+              <th className="px-5 py-3 text-right">EK</th>
+              <th className="px-5 py-3 text-right">Menge</th>
+              <th className="px-5 py-3 text-right">Aufschl.</th>
+              <th className="px-5 py-3 text-right">VK</th>
+              <th className="px-5 py-3 text-center">Status</th>
+              <th className="px-5 py-3"></th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-700/30">
+            {items.map(zt => (
+              <tr key={zt.id} className="hover:bg-slate-700/30">
+                <td className="px-5 py-3 text-sm text-white">
+                  {zt.produkt_link ? (
+                    <a href={zt.produkt_link} target="_blank" rel="noopener" className="text-blue-400 hover:underline">{zt.bezeichnung}</a>
+                  ) : zt.bezeichnung}
+                </td>
+                <td className="px-5 py-3 text-sm text-slate-300">{zt.hersteller || '-'}</td>
+                <td className="px-5 py-3 text-sm text-slate-300 font-mono">{zt.artikel_nr || '-'}</td>
+                <td className="px-5 py-3 text-sm text-right text-slate-300">{euro(zt.einkaufspreis)}</td>
+                <td className="px-5 py-3 text-sm text-right text-slate-300">{zt.menge}</td>
+                <td className="px-5 py-3 text-sm text-right text-slate-300">{zt.aufschlag_prozent}%</td>
+                <td className="px-5 py-3 text-sm text-right font-medium text-green-400">{euro(zt.verkaufspreis)}</td>
+                <td className="px-5 py-3 text-center">
+                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${statusColors[zt.status] || 'bg-slate-500/20 text-slate-300'}`}>
+                    {zt.status}
+                  </span>
+                </td>
+                <td className="px-5 py-3 text-right">
+                  <button onClick={() => handleDelete(zt.id)}
+                    className="text-xs text-slate-400 hover:text-red-400">X</button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+
+      {items.length > 0 && (
+        <div className="px-5 py-3 bg-slate-800/40 border-t border-slate-700/50 flex justify-between text-sm">
+          <span className="text-slate-400">Summe EK: {euro(items.reduce((s, z) => s + z.einkaufspreis * z.menge, 0))}</span>
+          <span className="font-medium text-green-400">Summe VK: {euro(items.reduce((s, z) => s + z.verkaufspreis, 0))}</span>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// === NACHKALKULATION TAB (Manuelle Ueberschreibungen) ===
+function NachkalkulationTab({ projektId, posList, onReload }) {
+  const [overrides, setOverrides] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [showForm, setShowForm] = useState(false)
+  const [form, setForm] = useState({
+    position_id: '', feld: 'einheitspreis', neuer_wert: 0, begruendung: '',
+  })
+
+  useEffect(() => { loadOverrides() }, [projektId])
+
+  const loadOverrides = async () => {
+    setLoading(true)
+    try {
+      const data = await ueberschreibungen.liste(projektId)
+      setOverrides(data)
+    } catch (e) {
+      console.error('Ueberschreibungen laden:', e)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    if (!form.begruendung.trim()) {
+      alert('Begruendung ist Pflicht!')
+      return
+    }
+    try {
+      await ueberschreibungen.erstellen(projektId, {
+        ...form,
+        position_id: parseInt(form.position_id),
+        neuer_wert: parseFloat(form.neuer_wert),
+      })
+      setShowForm(false)
+      setForm({ position_id: '', feld: 'einheitspreis', neuer_wert: 0, begruendung: '' })
+      loadOverrides()
+      if (onReload) onReload()
+    } catch (e) {
+      alert('Fehler: ' + e.message)
+    }
+  }
+
+  const feldLabels = {
+    einheitspreis: 'Einheitspreis',
+    materialkosten: 'Materialkosten',
+    maschinenkosten: 'Maschinenkosten',
+    lohnkosten: 'Lohnkosten',
+    gesamtpreis: 'Gesamtpreis',
+  }
+
+  if (loading) return <div className="text-center py-8 text-slate-400">Lade...</div>
+
+  return (
+    <div className="space-y-4">
+      {/* Info-Box */}
+      <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg px-4 py-3 text-sm text-amber-300">
+        Manuelle Ueberschreibungen aendern Kalkulationswerte einzelner Positionen.
+        Jede Aenderung wird mit Begruendung protokolliert (Audit-Trail).
+      </div>
+
+      <div className="glass-card overflow-hidden">
+        <div className="px-5 py-4 border-b border-slate-700/30 flex justify-between items-center">
+          <h2 className="font-semibold text-slate-200">Ueberschreibungen ({overrides.length})</h2>
+          <button onClick={() => setShowForm(!showForm)}
+            className="bg-amber-600 hover:bg-amber-700 text-white px-4 py-1.5 rounded-lg text-sm font-medium">
+            {showForm ? 'Abbrechen' : '+ Wert aendern'}
+          </button>
+        </div>
+
+        {showForm && (
+          <form onSubmit={handleSubmit} className="p-5 bg-slate-800/40 border-b border-slate-700/50">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <div>
+                <label className="text-xs text-slate-400">Position *</label>
+                <select required value={form.position_id}
+                  onChange={e => setForm({...form, position_id: e.target.value})}
+                  className="w-full bg-slate-800/60 text-slate-200 border border-slate-600 rounded px-3 py-1.5 text-sm">
+                  <option value="">-- Waehlen --</option>
+                  {posList.map(p => (
+                    <option key={p.id} value={p.id}>
+                      Pos {p.pos_nr}: {p.kurztext?.substring(0, 30)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="text-xs text-slate-400">Feld *</label>
+                <select value={form.feld} onChange={e => setForm({...form, feld: e.target.value})}
+                  className="w-full bg-slate-800/60 text-slate-200 border border-slate-600 rounded px-3 py-1.5 text-sm">
+                  {Object.entries(feldLabels).map(([k, v]) => (
+                    <option key={k} value={k}>{v}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="text-xs text-slate-400">Neuer Wert *</label>
+                <input type="number" step="0.01" required value={form.neuer_wert}
+                  onChange={e => setForm({...form, neuer_wert: e.target.value})}
+                  className="w-full bg-slate-800/60 text-slate-200 border border-slate-600 rounded px-3 py-1.5 text-sm" />
+              </div>
+              <div>
+                <label className="text-xs text-slate-400">Begruendung * (Pflicht!)</label>
+                <input type="text" required value={form.begruendung}
+                  placeholder="z.B. Kundenrabatt, Erfahrungswert..."
+                  onChange={e => setForm({...form, begruendung: e.target.value})}
+                  className="w-full bg-slate-800/60 text-slate-200 border border-slate-600 rounded px-3 py-1.5 text-sm" />
+              </div>
+            </div>
+            <button type="submit"
+              className="mt-3 bg-amber-600 hover:bg-amber-700 text-white px-5 py-2 rounded-lg text-sm font-medium">
+              Ueberschreiben
+            </button>
+          </form>
+        )}
+
+        {overrides.length === 0 && !showForm ? (
+          <div className="p-8 text-center text-slate-400">Keine manuellen Ueberschreibungen</div>
+        ) : (
+          <table className="w-full">
+            <thead>
+              <tr className="text-left text-xs text-slate-400 uppercase tracking-wider">
+                <th className="px-5 py-3">Position</th>
+                <th className="px-5 py-3">Feld</th>
+                <th className="px-5 py-3 text-right">Alt</th>
+                <th className="px-5 py-3 text-right">Neu</th>
+                <th className="px-5 py-3">Begruendung</th>
+                <th className="px-5 py-3">Datum</th>
+                <th className="px-5 py-3">Von</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-700/30">
+              {overrides.map(ov => (
+                <tr key={ov.id} className="hover:bg-slate-700/30">
+                  <td className="px-5 py-3 text-sm font-mono text-slate-300">Pos #{ov.position_id}</td>
+                  <td className="px-5 py-3 text-sm text-slate-200">{feldLabels[ov.feld] || ov.feld}</td>
+                  <td className="px-5 py-3 text-sm text-right text-red-400 line-through">{euro(ov.alter_wert)}</td>
+                  <td className="px-5 py-3 text-sm text-right font-medium text-green-400">{euro(ov.neuer_wert)}</td>
+                  <td className="px-5 py-3 text-sm text-slate-300 italic">{ov.begruendung}</td>
+                  <td className="px-5 py-3 text-xs text-slate-400">{ov.geaendert_am?.substring(0, 16)}</td>
+                  <td className="px-5 py-3 text-xs text-slate-400">{ov.geaendert_von}</td>
                 </tr>
               ))}
             </tbody>
@@ -238,7 +1118,6 @@ export default function Projekt() {
 }
 
 function KalkUebersicht({ kalk, projekt }) {
-  // Verwende kalkResult falls vorhanden, sonst Projektdaten
   const data = kalk || {
     herstellkosten: projekt.herstellkosten,
     angebotspreis: projekt.angebotspreis,
@@ -249,7 +1128,7 @@ function KalkUebersicht({ kalk, projekt }) {
     ['Materialkosten', data.materialkosten],
     ['Maschinenkosten', data.maschinenkosten],
     ['Lohnkosten', data.lohnkosten],
-    null, // Trennlinie
+    null,
     ['Herstellkosten', data.herstellkosten, true],
     ['Gemeinkosten (GKZ)', data.gemeinkosten],
     ['Selbstkosten', data.selbstkosten, true],
@@ -266,11 +1145,11 @@ function KalkUebersicht({ kalk, projekt }) {
     <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8">
       <div>
         {rows.map((row, i) => {
-          if (row === null) return <div key={i} className="border-t border-slate-200 my-2" />
+          if (row === null) return <div key={i} className="border-t border-slate-700/50 my-2" />
           const [label, value, bold, highlight] = row
           if (value === 0 && !bold) return null
           return (
-            <div key={i} className={`flex justify-between py-1 ${bold ? 'font-semibold' : ''} ${highlight ? 'text-orange-700 text-lg' : 'text-slate-700 text-sm'}`}>
+            <div key={i} className={`flex justify-between py-1 ${bold ? 'font-semibold' : ''} ${highlight ? 'text-amber-400 text-lg' : 'text-slate-200 text-sm'}`}>
               <span>{label}</span>
               <span>{euro(value)}</span>
             </div>
@@ -279,10 +1158,10 @@ function KalkUebersicht({ kalk, projekt }) {
       </div>
       <div className="flex items-center justify-center">
         <div className="text-center">
-          <div className="text-4xl font-bold text-orange-600">{euro(data.angebotspreis)}</div>
-          <div className="text-sm text-slate-500 mt-1">Angebotspreis (netto)</div>
+          <div className="text-4xl font-bold text-amber-500">{euro(data.angebotspreis)}</div>
+          <div className="text-sm text-slate-400 mt-1">Angebotspreis (netto)</div>
           {data.marge_prozent > 0 && (
-            <div className="text-sm text-green-600 mt-2 font-medium">
+            <div className="text-sm text-green-400 mt-2 font-medium">
               Marge: {data.marge_prozent.toFixed(1)}%
             </div>
           )}
@@ -297,7 +1176,7 @@ function ExportButton({ label, loading, onClick }) {
     <button
       onClick={onClick}
       disabled={loading}
-      className="border border-slate-300 hover:border-orange-400 hover:bg-orange-50 disabled:bg-slate-100 disabled:text-slate-400 text-slate-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+      className="border border-slate-600 hover:border-amber-400 hover:bg-amber-500/10 disabled:bg-slate-700 disabled:text-slate-500 text-slate-200 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
     >
       {loading ? '...' : label}
     </button>

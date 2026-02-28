@@ -123,6 +123,83 @@ CREATE TABLE IF NOT EXISTS konfiguration_log (
     geaendert_am    TEXT NOT NULL,
     geaendert_von   TEXT DEFAULT 'system'
 );
+
+-- Werkstuecke (Einzelbauteile pro Position)
+CREATE TABLE IF NOT EXISTS werkstuecke (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    projekt_id      TEXT NOT NULL REFERENCES projekte(id) ON DELETE CASCADE,
+    position_id     INTEGER REFERENCES positionen(id) ON DELETE CASCADE,
+    bezeichnung     TEXT NOT NULL DEFAULT '',
+    anzahl          INTEGER DEFAULT 1,
+    laenge_mm       REAL DEFAULT 0,
+    breite_mm       REAL DEFAULT 0,
+    tiefe_mm        REAL DEFAULT 0,
+    staerke_mm      REAL DEFAULT 0,
+    material        TEXT DEFAULT '',         -- Spanplatte | MDF | Multiplex | Massivholz | Mineralwerkstoff | Sonstige
+    oberflaeche     TEXT DEFAULT '',         -- Melamin | Folie | Echtholzfurnier | Mineralwerkstoff | Lackiert-extern
+    fertigung       TEXT DEFAULT 'cnc',      -- cnc-nesting | handfertigung | zukauf
+    ist_fremdleistung INTEGER DEFAULT 0,     -- auto bei Lackiert-extern
+    hop_datei       TEXT DEFAULT '',          -- Referenz auf HOP-Datei
+    notizen         TEXT DEFAULT '',
+    erstellt_am     TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_werkstuecke_position ON werkstuecke(position_id);
+CREATE INDEX IF NOT EXISTS idx_werkstuecke_projekt ON werkstuecke(projekt_id);
+
+-- Zukaufteile (eingekaufte Teile pro Projekt)
+CREATE TABLE IF NOT EXISTS zukaufteile (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    projekt_id      TEXT NOT NULL REFERENCES projekte(id) ON DELETE CASCADE,
+    position_id     INTEGER REFERENCES positionen(id) ON DELETE SET NULL,
+    bezeichnung     TEXT NOT NULL DEFAULT '',
+    hersteller      TEXT DEFAULT '',
+    produkt         TEXT DEFAULT '',
+    artikel_nr      TEXT DEFAULT '',
+    produkt_link    TEXT DEFAULT '',         -- URL zur Produktseite
+    einkaufspreis   REAL DEFAULT 0,          -- netto
+    menge           REAL DEFAULT 1,
+    aufschlag_prozent REAL DEFAULT 15.0,     -- konfigurierbarer Aufschlag
+    verkaufspreis   REAL DEFAULT 0,          -- automatisch berechnet
+    status          TEXT DEFAULT 'ausstehend', -- ausstehend | angefragt | bestellt | geliefert
+    quelle          TEXT DEFAULT '',         -- haefele | blum | egger | amazon | manuell
+    alternativ_json TEXT DEFAULT '[]',       -- JSON: Alternativanbieter
+    erstellt_am     TEXT NOT NULL,
+    aktualisiert_am TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_zukaufteile_projekt ON zukaufteile(projekt_id);
+
+-- Manuelle Ueberschreibungen (Audit-Trail pro Position)
+CREATE TABLE IF NOT EXISTS manuelle_ueberschreibungen (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    projekt_id      TEXT NOT NULL REFERENCES projekte(id) ON DELETE CASCADE,
+    position_id     INTEGER NOT NULL REFERENCES positionen(id) ON DELETE CASCADE,
+    feld            TEXT NOT NULL,           -- z.B. 'einheitspreis', 'materialkosten', 'lohnkosten'
+    alter_wert      REAL DEFAULT 0,
+    neuer_wert      REAL NOT NULL,
+    begruendung     TEXT NOT NULL DEFAULT '', -- Pflichtfeld: z.B. 'Kundenrabatt', 'Altpreis'
+    geaendert_am    TEXT NOT NULL,
+    geaendert_von   TEXT DEFAULT 'dean'
+);
+
+CREATE INDEX IF NOT EXISTS idx_ueberschreibungen_position ON manuelle_ueberschreibungen(position_id);
+
+-- Altprojekt-Analysen (extrahierte Daten aus historischen Projekten)
+CREATE TABLE IF NOT EXISTS altprojekt_analysen (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    projekt_name    TEXT NOT NULL,
+    quell_pfad      TEXT NOT NULL,           -- Pfad zum Altprojekt-Ordner
+    analyse_datum   TEXT NOT NULL,
+    positionen_json TEXT DEFAULT '[]',       -- JSON: extrahierte Positionen mit Preisen
+    materialien_json TEXT DEFAULT '[]',      -- JSON: erkannte Materialien + Preise
+    maschinen_json  TEXT DEFAULT '[]',       -- JSON: Maschinenzeiten
+    stundensaetze_json TEXT DEFAULT '{}',    -- JSON: extrahierte Stundensaetze
+    inflationsfaktor REAL DEFAULT 1.0,       -- Berechneter Aufschlag seit Projektdatum
+    projekt_datum   TEXT DEFAULT '',          -- Wann war das Altprojekt
+    notizen         TEXT DEFAULT '',
+    status          TEXT DEFAULT 'analysiert' -- analysiert | importiert | verworfen
+);
 """
 
 
@@ -142,6 +219,8 @@ async def get_db(db_path: Path | None = None) -> AsyncGenerator[aiosqlite.Connec
     path = db_path or DB_PATH
     async with aiosqlite.connect(str(path)) as db:
         db.row_factory = aiosqlite.Row
+        await db.execute("PRAGMA foreign_keys = ON")
+        await db.execute("PRAGMA journal_mode = WAL")
         yield db
 
 
@@ -151,6 +230,8 @@ def init_db_sync(db_path: Path | None = None) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
 
     conn = sqlite3.connect(str(path))
+    conn.execute("PRAGMA foreign_keys = ON")
+    conn.execute("PRAGMA journal_mode = WAL")
     conn.executescript(SCHEMA_SQL)
     conn.commit()
     conn.close()

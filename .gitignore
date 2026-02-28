@@ -20,3 +20,9 @@ frontend/dist/
 .DS_Store
 Thumbs.db
 .pytest_cache/
+config/.secret_key
+config/partner-logins.yaml
+data/debug_*.png
+screenshot_*.png
+data/*.xltx
+data/*.csv

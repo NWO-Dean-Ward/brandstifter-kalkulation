@@ -60,6 +60,40 @@ async def erstelle_position(projekt_id: str, data: PositionCreate):
         return _row_to_response(await cursor.fetchone())
 
 
+@router.patch("/{position_id}", response_model=PositionResponse)
+async def update_position(projekt_id: str, position_id: int, data: PositionCreate):
+    """Position aktualisieren."""
+    ist_lackierung = _check_lackierung(data.kurztext, data.langtext)
+
+    async with get_db() as db:
+        cursor = await db.execute(
+            "SELECT id FROM positionen WHERE id = ? AND projekt_id = ?",
+            (position_id, projekt_id),
+        )
+        if not await cursor.fetchone():
+            raise HTTPException(status_code=404, detail="Position nicht gefunden")
+
+        await db.execute(
+            """UPDATE positionen SET
+               pos_nr=?, kurztext=?, langtext=?, menge=?, einheit=?, material=?,
+               platten_anzahl=?, kantenlaenge_lfm=?, schnittanzahl=?, bohrungen_anzahl=?,
+               ist_lackierung=?, ist_fremdleistung=?
+               WHERE id = ? AND projekt_id = ?""",
+            (
+                data.pos_nr, data.kurztext, data.langtext,
+                data.menge, data.einheit, data.material,
+                data.platten_anzahl, data.kantenlaenge_lfm,
+                data.schnittanzahl, data.bohrungen_anzahl,
+                int(ist_lackierung), int(ist_lackierung),
+                position_id, projekt_id,
+            ),
+        )
+        await db.commit()
+
+        cursor = await db.execute("SELECT * FROM positionen WHERE id = ?", (position_id,))
+        return _row_to_response(await cursor.fetchone())
+
+
 @router.delete("/{position_id}", status_code=204)
 async def loesche_position(projekt_id: str, position_id: int):
     """Position löschen."""

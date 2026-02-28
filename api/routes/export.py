@@ -30,20 +30,78 @@ def cache_kalkulation(projekt_id: str, ergebnis: dict) -> None:
     _kalkulations_cache[projekt_id] = ergebnis
 
 
-def _get_kalkulation(projekt_id: str) -> dict:
-    if projekt_id not in _kalkulations_cache:
-        raise HTTPException(
-            status_code=404,
-            detail=f"Keine Kalkulation fuer {projekt_id} im Cache. "
-                   f"Bitte zuerst Kalkulation starten.",
+async def _get_kalkulation(projekt_id: str) -> dict:
+    """Holt Kalkulationsergebnis aus Cache oder rekonstruiert aus DB."""
+    if projekt_id in _kalkulations_cache:
+        return _kalkulations_cache[projekt_id]
+
+    # Cache leer (z.B. nach Server-Neustart) -> aus DB rekonstruieren
+    async with get_db() as db:
+        cursor = await db.execute(
+            "SELECT * FROM projekte WHERE id = ?", (projekt_id,)
         )
-    return _kalkulations_cache[projekt_id]
+        projekt = await cursor.fetchone()
+        if not projekt:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Projekt {projekt_id} nicht gefunden.",
+            )
+
+        p = dict(projekt)
+        if p.get("angebotspreis", 0) == 0 and p.get("status") == "entwurf":
+            raise HTTPException(
+                status_code=404,
+                detail=f"Keine Kalkulation fuer {projekt_id}. "
+                       f"Bitte zuerst Kalkulation starten.",
+            )
+
+        cursor = await db.execute(
+            "SELECT * FROM positionen WHERE projekt_id = ? ORDER BY pos_nr",
+            (projekt_id,),
+        )
+        positionen = [dict(r) for r in await cursor.fetchall()]
+
+    # Summen aus Positionsdaten rekonstruieren
+    mat_summe = sum(pos.get("materialkosten", 0) for pos in positionen)
+    mas_summe = sum(pos.get("maschinenkosten", 0) for pos in positionen)
+    loh_summe = sum(pos.get("lohnkosten", 0) for pos in positionen)
+    fl_summe = sum(pos.get("fremdleistungskosten", 0) for pos in positionen)
+    angebotspreis = p.get("angebotspreis", 0)
+    herstellkosten = p.get("herstellkosten", 0)
+
+    kalkulation = {
+        "positionen": positionen,
+        "projekt_typ": p.get("projekt_typ", "standard"),
+        "zuschlaege": {
+            "angebotspreis_gesamt": angebotspreis,
+            "herstellkosten": herstellkosten,
+            "materialkosten": mat_summe,
+            "maschinenkosten": mas_summe,
+            "lohnkosten": loh_summe,
+            "selbstkosten": herstellkosten,  # Approximation
+            "gemeinkosten": {"betrag": herstellkosten - mat_summe - mas_summe - loh_summe, "satz": 0},
+            "gewinn": {"betrag": 0, "satz": 0},
+            "wagnis": {"betrag": 0, "satz": 0},
+            "montage_zuschlag": {"betrag": 0},
+            "fremdleistungen": {"kosten": fl_summe, "zuschlag": 0},
+            "marge": {"prozent": p.get("marge_prozent", 0), "absolut": angebotspreis - herstellkosten},
+        },
+        "materialkosten": {"materialkosten_gesamt": mat_summe},
+        "maschinenkosten": {"maschinenkosten_gesamt": mas_summe},
+        "lohnkosten": {"lohnkosten_gesamt": loh_summe},
+        "warnungen": ["Hinweis: Detaildaten aus DB rekonstruiert (Server-Neustart). "
+                      "Fuer volle Details bitte Kalkulation erneut starten."],
+    }
+
+    # In Cache legen fuer naechste Anfrage
+    _kalkulations_cache[projekt_id] = kalkulation
+    return kalkulation
 
 
 @router.post("/{projekt_id}/angebot-pdf")
 async def export_angebot_pdf(projekt_id: str):
     """Generiert Angebots-PDF."""
-    kalk = _get_kalkulation(projekt_id)
+    kalk = await _get_kalkulation(projekt_id)
     export = _pipeline.subagenten.get("export_agent")
     if not export:
         raise HTTPException(status_code=503, detail="Export-Agent nicht verfuegbar")
@@ -61,7 +119,7 @@ async def export_angebot_pdf(projekt_id: str):
 @router.post("/{projekt_id}/intern-pdf")
 async def export_intern_pdf(projekt_id: str):
     """Generiert interne Kalkulations-PDF."""
-    kalk = _get_kalkulation(projekt_id)
+    kalk = await _get_kalkulation(projekt_id)
     export = _pipeline.subagenten.get("export_agent")
     if not export:
         raise HTTPException(status_code=503, detail="Export-Agent nicht verfuegbar")
@@ -79,7 +137,7 @@ async def export_intern_pdf(projekt_id: str):
 @router.post("/{projekt_id}/excel")
 async def export_excel(projekt_id: str):
     """Generiert Excel-Export."""
-    kalk = _get_kalkulation(projekt_id)
+    kalk = await _get_kalkulation(projekt_id)
     export = _pipeline.subagenten.get("export_agent")
     if not export:
         raise HTTPException(status_code=503, detail="Export-Agent nicht verfuegbar")
@@ -97,7 +155,7 @@ async def export_excel(projekt_id: str):
 @router.post("/{projekt_id}/gaeb")
 async def export_gaeb(projekt_id: str):
     """Generiert GAEB-X83 Export."""
-    kalk = _get_kalkulation(projekt_id)
+    kalk = await _get_kalkulation(projekt_id)
     export = _pipeline.subagenten.get("export_agent")
     if not export:
         raise HTTPException(status_code=503, detail="Export-Agent nicht verfuegbar")
@@ -115,7 +173,7 @@ async def export_gaeb(projekt_id: str):
 @router.post("/{projekt_id}/alle")
 async def export_alle(projekt_id: str):
     """Generiert alle Export-Formate auf einmal."""
-    kalk = _get_kalkulation(projekt_id)
+    kalk = await _get_kalkulation(projekt_id)
     export = _pipeline.subagenten.get("export_agent")
     if not export:
         raise HTTPException(status_code=503, detail="Export-Agent nicht verfuegbar")

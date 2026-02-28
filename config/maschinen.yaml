@@ -25,3 +25,9 @@ bohrautomat:
   name: "Bohrautomat"
   stundensatz_eur: 30.00
   bohrungen_pro_stunde: 60
+
+# Standard-Plattengroesse fuer Nesting-Berechnung
+platte_standard:
+  laenge_mm: 2800
+  breite_mm: 2070
+  schnittbreite_mm: 4

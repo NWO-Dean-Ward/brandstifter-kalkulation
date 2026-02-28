@@ -6,9 +6,12 @@ Endpoints fuer HOP/MPR Import, HOP-Export, Stuecklisten und Nesting.
 
 from __future__ import annotations
 
+import os
 import tempfile
 from pathlib import Path
 from typing import Any
+
+MAX_UPLOAD_SIZE = 50 * 1024 * 1024  # 50 MB
 
 from fastapi import APIRouter, HTTPException, UploadFile, File, Form
 from fastapi.responses import FileResponse
@@ -49,26 +52,31 @@ async def parse_hop(
     if not datei.filename or not datei.filename.lower().endswith(".hop"):
         raise HTTPException(status_code=400, detail="Nur .hop Dateien erlaubt")
 
-    # Temporaer speichern
+    content = await datei.read()
+    if len(content) > MAX_UPLOAD_SIZE:
+        raise HTTPException(status_code=413, detail="Datei zu gross (max. 50 MB)")
+
     with tempfile.NamedTemporaryFile(delete=False, suffix=".hop") as tmp:
-        content = await datei.read()
         tmp.write(content)
         tmp_path = tmp.name
 
-    from agents.base_agent import AgentMessage
+    try:
+        from agents.base_agent import AgentMessage
 
-    msg = AgentMessage(
-        sender="api", receiver="cnc_integration",
-        msg_type="parse_hop",
-        payload={"datei_pfad": tmp_path},
-        projekt_id=projekt_id or "TEMP",
-    )
-    result = await _cnc_agent.execute(msg)
+        msg = AgentMessage(
+            sender="api", receiver="cnc_integration",
+            msg_type="parse_hop",
+            payload={"datei_pfad": tmp_path},
+            projekt_id=projekt_id or "TEMP",
+        )
+        result = await _cnc_agent.execute(msg)
 
-    if result.payload.get("error"):
-        raise HTTPException(status_code=400, detail=result.payload["error"])
+        if result.payload.get("error"):
+            raise HTTPException(status_code=400, detail=result.payload["error"])
 
-    return result.payload
+        return result.payload
+    finally:
+        os.unlink(tmp_path)
 
 
 # ------------------------------------------------------------------
@@ -86,25 +94,31 @@ async def parse_mpr(
     if not datei.filename or not datei.filename.lower().endswith(".mpr"):
         raise HTTPException(status_code=400, detail="Nur .mpr Dateien erlaubt")
 
+    content = await datei.read()
+    if len(content) > MAX_UPLOAD_SIZE:
+        raise HTTPException(status_code=413, detail="Datei zu gross (max. 50 MB)")
+
     with tempfile.NamedTemporaryFile(delete=False, suffix=".mpr") as tmp:
-        content = await datei.read()
         tmp.write(content)
         tmp_path = tmp.name
 
-    from agents.base_agent import AgentMessage
+    try:
+        from agents.base_agent import AgentMessage
 
-    msg = AgentMessage(
-        sender="api", receiver="cnc_integration",
-        msg_type="parse_mpr",
-        payload={"datei_pfad": tmp_path},
-        projekt_id=projekt_id or "TEMP",
-    )
-    result = await _cnc_agent.execute(msg)
+        msg = AgentMessage(
+            sender="api", receiver="cnc_integration",
+            msg_type="parse_mpr",
+            payload={"datei_pfad": tmp_path},
+            projekt_id=projekt_id or "TEMP",
+        )
+        result = await _cnc_agent.execute(msg)
 
-    if result.payload.get("error"):
-        raise HTTPException(status_code=400, detail=result.payload["error"])
+        if result.payload.get("error"):
+            raise HTTPException(status_code=400, detail=result.payload["error"])
 
-    return result.payload
+        return result.payload
+    finally:
+        os.unlink(tmp_path)
 
 
 # ------------------------------------------------------------------
@@ -194,11 +208,27 @@ async def export_stueckliste(projekt_id: str):
 @router.post("/{projekt_id}/nesting")
 async def nesting_analyse(
     projekt_id: str,
-    platte_laenge_mm: float = 2800,
-    platte_breite_mm: float = 2070,
+    platte_laenge_mm: float | None = None,
+    platte_breite_mm: float | None = None,
 ):
-    """Berechnet eine Nesting-Schaetzung (Plattenverbrauch + Verschnitt)."""
+    """Berechnet eine Nesting-Schaetzung (Plattenverbrauch + Verschnitt).
+
+    Plattengroesse wird aus config/maschinen.yaml geladen falls nicht explizit angegeben.
+    """
     _check_agent()
+
+    # Defaults aus Config laden falls nicht uebergeben
+    from api.config_loader import AppConfig
+    try:
+        cfg = AppConfig()
+        platte_cfg = cfg.maschinen.get("platte_standard", {})
+    except Exception:
+        platte_cfg = {}
+
+    if platte_laenge_mm is None:
+        platte_laenge_mm = platte_cfg.get("laenge_mm", 2800)
+    if platte_breite_mm is None:
+        platte_breite_mm = platte_cfg.get("breite_mm", 2070)
 
     async with get_db() as db:
         cursor = await db.execute(
