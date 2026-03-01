@@ -5,7 +5,7 @@ Ausschreibungs- & Kalkulationssoftware für AMP & Brandstifter GmbH (Schreinerei
 
 ## Stack
 - Backend: Python 3.12 / FastAPI / uvicorn
-- Frontend: React + Tailwind CSS + React Router (Vite)
+- Frontend: React 19 + Tailwind CSS 4 + shadcn/ui + React Router (Vite 7)
 - Datenbank: SQLite (aiosqlite async + sqlite3 sync)
 - GAEB: lxml (XML-Parser mit Namespace-Handling)
 - PDF: ReportLab
@@ -95,6 +95,40 @@ projekte, positionen, materialpreise, maschineneinsaetze, lernhistorie, konfigur
 - FK-Enforcement: PRAGMA foreign_keys = ON in get_db() und init_db_sync()
 - Playwright: `pip install playwright && playwright install chromium` (einmalig)
 - Egger-Dekore: 100+ Dekore in agents/analyse_agent.py EGGER_DEKORE dict
+
+## Frontend UI-Regeln
+
+### Component Map
+Die Datei `COMPONENT_MAP.md` im Projekt-Root enthaelt alle verfuegbaren shadcn/ui-Komponenten
+mit Einsatzempfehlungen fuer den Schreinerei-Kontext. Bei JEDER UI-Aenderung diese Map konsultieren.
+
+### UI-Prompt (fuer Feature-Entwicklung)
+Bei Frontend-Aufgaben folgende Rolle einnehmen:
+
+> Du bist ein Senior Frontend Engineer fuer Handwerks-Software. Baue UI mit React + Tailwind + shadcn/ui.
+> REGELN:
+> - Nutze NUR passende shadcn-Komponenten aus der COMPONENT_MAP.md (Table, Dialog, Tabs, Form, etc.)
+> - KEIN generisches AI-Design: kein Standard-Inter-Look, keine lila Gradients, keine Template-Optik
+> - Brandstifter-Palette: amber/brown primary (#b45309), dark slate bg (#0f172a), gold accent (#f59e0b)
+> - Saubere Typo-Hierarchie, 8pt Spacing, klare States (loading/empty/error/success)
+> - Responsive, keyboard-navigierbar, WCAG AA Kontrast
+> - Bestehende CSS-Klassen (glass-card, btn-primary, me-table, me-input, stat-card) wiederverwenden
+> - shadcn-Komponenten installieren: `npx shadcn@latest add <name>`
+> - Import-Alias: `@/components/ui/<name>`
+> - Output: erst kurzer UI-Plan mit Komponentenwahl + Begruendung, dann Code
+
+### Design-Dont's
+- Keine generischen Card-Layouts ohne Informationsdichte
+- Keine uebergrossen Border-Radius (> 1rem)
+- Keine Hero-Sections oder Marketing-Bloecke in der Business-App
+- Kein Light-Mode (App ist immer Dark)
+- Keine externen Fonts laden – system-ui Stack
+
+### shadcn Setup
+- components.json: Style "new-york", JSX (kein TSX), Lucide Icons
+- Alias: @/components/ui, @/lib/utils
+- CSS-Variablen in src/index.css (Brandstifter-Palette statt shadcn-Default)
+- cn() Utility: src/lib/utils.js (clsx + tailwind-merge)
 
 ## Phasen
 0. Agenten-Architektur ✓
