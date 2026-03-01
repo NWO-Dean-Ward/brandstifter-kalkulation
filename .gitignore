@@ -26,3 +26,5 @@ data/debug_*.png
 screenshot_*.png
 data/*.xltx
 data/*.csv
+debug.log
+*.log
