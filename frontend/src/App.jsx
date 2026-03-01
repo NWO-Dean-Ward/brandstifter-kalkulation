@@ -1,5 +1,7 @@
 import { useState, useCallback, useRef } from 'react'
 import { Routes, Route, NavLink } from 'react-router-dom'
+import { Button } from "@/components/ui/button"
+import { cn } from "@/lib/utils"
 import Dashboard from './pages/Dashboard'
 import Ausschreibung from './pages/Ausschreibung'
 import Projekt from './pages/Projekt'
@@ -40,11 +42,11 @@ function Nav({ chatOpen, onChatToggle }) {
               to={item.to}
               end={item.end}
               className={({ isActive }) =>
-                `px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                cn('px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200',
                   isActive
                     ? 'nav-active'
                     : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
-                }`
+                )
               }
             >
               {item.label}
@@ -54,16 +56,18 @@ function Nav({ chatOpen, onChatToggle }) {
 
         {/* Right side – KI-Chat toggle + status dot */}
         <div className="ml-auto flex items-center gap-3">
-          <button
+          <Button
+            variant="outline"
             onClick={onChatToggle}
-            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 ${
+            className={cn(
+              'text-sm font-medium transition-all duration-200',
               chatOpen
-                ? 'bg-purple-600 text-white border border-purple-600 shadow-lg shadow-purple-900/30'
-                : 'border border-purple-500/30 bg-purple-500/10 hover:bg-purple-500/20 text-purple-400'
-            }`}
+                ? 'bg-purple-600 text-white border-purple-600 shadow-lg shadow-purple-900/30 hover:bg-purple-700'
+                : 'border-purple-500/30 bg-purple-500/10 hover:bg-purple-500/20 text-purple-400'
+            )}
           >
             KI-Chat
-          </button>
+          </Button>
           <div className="flex items-center gap-2">
             <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" title="Server online" />
             <span className="text-xs text-slate-500">v0.1</span>

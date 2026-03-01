@@ -3,6 +3,15 @@ import { analyse, bildAnalyse, einkauf, chat as chatApi } from '../api'
 import AngebotTab from '../components/AngebotTab'
 import { buildChatContext, buildAutoVorschlagRequest } from '../chatContext'
 
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Separator } from "@/components/ui/separator"
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible"
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table"
+
 function euro(val) {
   return new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(val || 0)
 }
@@ -34,7 +43,7 @@ const LOHN_KATEGORIEN = [
   { bezeichnung: 'Montage', lohnart: 3 },
 ]
 
-// --- Reusable table row components ---
+// --- Reusable table row components (InputCell bleibt CUSTOM - borderless spreadsheet inline-edit) ---
 function InputCell({ value, onChange, type = 'text', placeholder = '', className = '', step, min }) {
   return (
     <input
@@ -44,38 +53,6 @@ function InputCell({ value, onChange, type = 'text', placeholder = '', className
       placeholder={placeholder}
       className={`w-full border-0 bg-transparent text-sm outline-none text-slate-200 placeholder-slate-500 focus:bg-slate-700/50 focus:ring-1 focus:ring-amber-500/50 rounded px-2 py-1 ${className}`}
     />
-  )
-}
-
-function SectionHeader({ title, summe, open, onToggle, nr }) {
-  return (
-    <button
-      onClick={onToggle}
-      className="w-full flex items-center justify-between px-4 py-3 bg-slate-800/60 hover:bg-slate-700/60 transition-colors border-b border-slate-700/50"
-    >
-      <div className="flex items-center gap-2">
-        <span className="text-xs text-slate-400 w-6">{open ? '\u25BC' : '\u25B6'}</span>
-        <span className="text-xs font-bold text-amber-500/70 uppercase">{nr}</span>
-        <span className="font-semibold text-slate-200 text-sm">{title}</span>
-      </div>
-      {summe !== null && <span className="text-sm font-bold text-amber-400">{euro(summe)}</span>}
-    </button>
-  )
-}
-
-function AddRowBtn({ onClick, label = '+ Zeile' }) {
-  return (
-    <button onClick={onClick} className="text-xs text-amber-500 hover:text-amber-400 font-medium px-4 py-1.5">
-      {label}
-    </button>
-  )
-}
-
-function RemoveBtn({ onClick }) {
-  return (
-    <button onClick={onClick} className="text-slate-600 hover:text-red-400 text-xs opacity-0 group-hover:opacity-100 transition-opacity" title="Entfernen">
-      X
-    </button>
   )
 }
 
@@ -607,8 +584,6 @@ export default function Kalkulator({ updateChatContext, addChatMessages, registe
   }
 
   // --- Render ---
-  const inputCls = 'bg-slate-800/60 border border-slate-600 rounded px-2 py-1.5 text-sm text-slate-200 outline-none focus:ring-1 focus:ring-amber-500/50 focus:border-amber-500/50 placeholder-slate-500'
-  const thCls = 'px-3 py-2 text-left text-xs text-slate-400 uppercase tracking-wider'
 
   // Kalk-Daten Paket fuer AngebotTab
   const kalkDaten = { platten, massivholz, kanten, halbzeuge, beschlaege, lacke, zukaufteile, fremdmaterial, lohn, kfz, variablen }
@@ -619,17 +594,23 @@ export default function Kalkulator({ updateChatContext, addChatMessages, registe
       <div className="flex items-center justify-between mb-6 animate-fade-in">
         <div className="flex items-center gap-4">
           <h1 className="text-2xl font-bold text-white">Sonderbau-Kalkulation</h1>
-          {/* Tab Switcher */}
-          <div className="flex bg-slate-800/80 rounded-lg p-0.5 border border-slate-700/50">
-            <button onClick={() => setActiveTab('kalkulation')}
-              className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all duration-200 ${activeTab === 'kalkulation' ? 'bg-amber-600/90 text-white shadow-lg shadow-amber-900/20' : 'text-slate-400 hover:text-slate-200'}`}>
-              Kalkulation
-            </button>
-            <button onClick={() => setActiveTab('angebot')}
-              className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all duration-200 ${activeTab === 'angebot' ? 'bg-amber-600/90 text-white shadow-lg shadow-amber-900/20' : 'text-slate-400 hover:text-slate-200'}`}>
-              Angebot
-            </button>
-          </div>
+          {/* Tab Switcher mit shadcn Tabs */}
+          <Tabs value={activeTab} onValueChange={setActiveTab}>
+            <TabsList className="bg-slate-800/80 border border-slate-700/50">
+              <TabsTrigger
+                value="kalkulation"
+                className="data-[state=active]:bg-amber-600/90 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-amber-900/20"
+              >
+                Kalkulation
+              </TabsTrigger>
+              <TabsTrigger
+                value="angebot"
+                className="data-[state=active]:bg-amber-600/90 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-amber-900/20"
+              >
+                Angebot
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
         </div>
         <div className="flex gap-2 items-center">
           {/* SmartWOP Import */}
@@ -641,13 +622,14 @@ export default function Kalkulator({ updateChatContext, addChatMessages, registe
             onChange={handleSmartWopImport}
             className="hidden"
           />
-          <button
+          <Button
+            variant="outline"
             onClick={() => fileInputRef.current?.click()}
-            className="border border-blue-500/30 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 px-3 py-2 rounded-lg text-sm font-medium transition-colors"
+            className="border-blue-500/30 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400"
             title="SmartWOP CSV importieren"
           >
             SmartWOP Import
-          </button>
+          </Button>
           {/* 3D/Bild Analyse */}
           <input
             ref={bildRef}
@@ -656,49 +638,61 @@ export default function Kalkulator({ updateChatContext, addChatMessages, registe
             onChange={handleBildUpload}
             className="hidden"
           />
-          <button
+          <Button
+            variant="outline"
             onClick={() => bildRef.current?.click()}
-            className="border border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 px-3 py-2 rounded-lg text-sm font-medium transition-colors"
+            className="border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400"
             title="3D-Datei oder Bild fuer KI-Preisschaetzung hochladen"
           >
             3D/Bild Analyse
-          </button>
-          <button onClick={clearAll} className="text-sm text-slate-500 hover:text-red-400 transition-colors">
+          </Button>
+          <Button variant="outline" onClick={clearAll} className="text-slate-500 hover:text-red-400 border-slate-600">
             Leeren
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="outline"
             onClick={exportCSV}
             disabled={calc.brutto === 0}
-            className="border border-slate-600 hover:border-amber-500/50 hover:bg-amber-500/10 disabled:opacity-30 text-slate-300 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+            className="border-slate-600 hover:border-amber-500/50 hover:bg-amber-500/10 disabled:opacity-30 text-slate-300"
           >
             CSV Export
-          </button>
+          </Button>
         </div>
       </div>
 
       {/* Import Status */}
       {importStatus && (
-        <div className={`mb-4 px-4 py-2 rounded-lg text-sm ${
-          importStatus.type === 'success' ? 'bg-green-500/10 text-green-400 border border-green-500/30' :
-          importStatus.type === 'error' ? 'bg-red-500/10 text-red-400 border border-red-500/30' :
-          'bg-blue-500/10 text-blue-400 border border-blue-500/30'
-        }`}>
-          {importStatus.msg}
-          <button onClick={() => setImportStatus(null)} className="ml-2 text-xs opacity-60 hover:opacity-100">X</button>
-        </div>
+        <Alert
+          variant={importStatus.type === 'error' ? 'destructive' : 'default'}
+          className={`mb-4 ${
+            importStatus.type === 'success' ? 'bg-green-500/10 text-green-400 border-green-500/30' :
+            importStatus.type === 'error' ? 'bg-red-500/10 text-red-400 border-red-500/30' :
+            'bg-blue-500/10 text-blue-400 border-blue-500/30'
+          }`}
+        >
+          <AlertDescription className="flex items-center justify-between">
+            <span>{importStatus.msg}</span>
+            <button onClick={() => setImportStatus(null)} className="ml-2 text-xs opacity-60 hover:opacity-100">X</button>
+          </AlertDescription>
+        </Alert>
       )}
 
       {bildStatus && (
-        <div className={`mb-4 px-4 py-2 rounded-lg text-sm ${
-          bildStatus.type === 'success' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30' :
-          bildStatus.type === 'error' ? 'bg-red-500/10 text-red-400 border border-red-500/30' :
-          'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 animate-pulse'
-        }`}>
-          {bildStatus.msg}
-          {bildStatus.type !== 'loading' && (
-            <button onClick={() => { setBildStatus(null); setBildResult(null) }} className="ml-2 text-xs opacity-60 hover:opacity-100">X</button>
-          )}
-        </div>
+        <Alert
+          variant={bildStatus.type === 'error' ? 'destructive' : 'default'}
+          className={`mb-4 ${
+            bildStatus.type === 'success' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' :
+            bildStatus.type === 'error' ? 'bg-red-500/10 text-red-400 border-red-500/30' :
+            'bg-emerald-500/10 text-emerald-400 border-emerald-500/30 animate-pulse'
+          }`}
+        >
+          <AlertDescription className="flex items-center justify-between">
+            <span>{bildStatus.msg}</span>
+            {bildStatus.type !== 'loading' && (
+              <button onClick={() => { setBildStatus(null); setBildResult(null) }} className="ml-2 text-xs opacity-60 hover:opacity-100">X</button>
+            )}
+          </AlertDescription>
+        </Alert>
       )}
 
       {/* Bild-Analyse Detail-Ergebnis */}
@@ -748,488 +742,670 @@ export default function Kalkulator({ updateChatContext, addChatMessages, registe
         <div className="flex-1 space-y-2 min-w-0">
 
           {/* 1. Allgemeine Angaben */}
-          <div className="glass-card overflow-hidden">
-            <SectionHeader title="Allgemeine Angaben" summe={null} open={openSections.allgemein} onToggle={() => toggle('allgemein')} nr="1" />
-            {openSections.allgemein && (
-              <div className="p-4 grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs text-slate-400">Kunde</label>
-                  <input value={allgemein.kunde} onChange={e => setAllgemein(p => ({ ...p, kunde: e.target.value }))}
-                    className={`w-full ${inputCls}`} placeholder="Firmenname..." />
+          <Collapsible open={openSections.allgemein} onOpenChange={() => toggle('allgemein')}>
+            <div className="glass-card overflow-hidden">
+              <CollapsibleTrigger asChild>
+                <button className="w-full flex items-center justify-between px-4 py-3 bg-slate-800/60 hover:bg-slate-700/60 transition-colors border-b border-slate-700/50">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-slate-400 w-6">{openSections.allgemein ? '\u25BC' : '\u25B6'}</span>
+                    <span className="text-xs font-bold text-amber-500/70 uppercase">1</span>
+                    <span className="font-semibold text-slate-200 text-sm">Allgemeine Angaben</span>
+                  </div>
+                </button>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <div className="p-4 grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label className="text-xs text-slate-400">Kunde</Label>
+                    <Input value={allgemein.kunde} onChange={e => setAllgemein(p => ({ ...p, kunde: e.target.value }))}
+                      className="bg-slate-800/60 border-slate-600 text-slate-200 placeholder-slate-500 focus:ring-amber-500/50 focus:border-amber-500/50"
+                      placeholder="Firmenname..." />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs text-slate-400">Gegenstand</Label>
+                    <Input value={allgemein.gegenstand} onChange={e => setAllgemein(p => ({ ...p, gegenstand: e.target.value }))}
+                      className="bg-slate-800/60 border-slate-600 text-slate-200 placeholder-slate-500 focus:ring-amber-500/50 focus:border-amber-500/50"
+                      placeholder="z.B. KlappBar, Empfangstresen..." />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs text-slate-400">Bearbeiter</Label>
+                    <Input value={allgemein.bearbeiter} onChange={e => setAllgemein(p => ({ ...p, bearbeiter: e.target.value }))}
+                      className="bg-slate-800/60 border-slate-600 text-slate-200 placeholder-slate-500 focus:ring-amber-500/50 focus:border-amber-500/50" />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs text-slate-400">Datum</Label>
+                    <Input type="date" value={allgemein.datum} onChange={e => setAllgemein(p => ({ ...p, datum: e.target.value }))}
+                      className="bg-slate-800/60 border-slate-600 text-slate-200 placeholder-slate-500 focus:ring-amber-500/50 focus:border-amber-500/50" />
+                  </div>
                 </div>
-                <div>
-                  <label className="text-xs text-slate-400">Gegenstand</label>
-                  <input value={allgemein.gegenstand} onChange={e => setAllgemein(p => ({ ...p, gegenstand: e.target.value }))}
-                    className={`w-full ${inputCls}`} placeholder="z.B. KlappBar, Empfangstresen..." />
-                </div>
-                <div>
-                  <label className="text-xs text-slate-400">Bearbeiter</label>
-                  <input value={allgemein.bearbeiter} onChange={e => setAllgemein(p => ({ ...p, bearbeiter: e.target.value }))}
-                    className={`w-full ${inputCls}`} />
-                </div>
-                <div>
-                  <label className="text-xs text-slate-400">Datum</label>
-                  <input type="date" value={allgemein.datum} onChange={e => setAllgemein(p => ({ ...p, datum: e.target.value }))}
-                    className={`w-full ${inputCls}`} />
-                </div>
-              </div>
-            )}
-          </div>
+              </CollapsibleContent>
+            </div>
+          </Collapsible>
 
           {/* 3. Variablen */}
-          <div className="glass-card overflow-hidden">
-            <SectionHeader title="Variablen & Zuschlaege" summe={null} open={openSections.variablen} onToggle={() => toggle('variablen')} nr="3" />
-            {openSections.variablen && (
-              <div className="p-4">
-                <div className="grid grid-cols-2 gap-x-6 gap-y-3">
-                  <div className="col-span-2 text-xs font-bold text-slate-500 uppercase">Lohnsaetze</div>
+          <Collapsible open={openSections.variablen} onOpenChange={() => toggle('variablen')}>
+            <div className="glass-card overflow-hidden">
+              <CollapsibleTrigger asChild>
+                <button className="w-full flex items-center justify-between px-4 py-3 bg-slate-800/60 hover:bg-slate-700/60 transition-colors border-b border-slate-700/50">
                   <div className="flex items-center gap-2">
-                    <label className="text-sm text-slate-300 w-48">Lohn 1 - Werkstatt</label>
-                    <input type="number" step="1" value={variablen.lohn1} onChange={e => setVariablen(p => ({ ...p, lohn1: e.target.value }))}
-                      className={`w-24 text-right ${inputCls}`} /><span className="text-xs text-slate-400">EUR/h</span>
+                    <span className="text-xs text-slate-400 w-6">{openSections.variablen ? '\u25BC' : '\u25B6'}</span>
+                    <span className="text-xs font-bold text-amber-500/70 uppercase">3</span>
+                    <span className="font-semibold text-slate-200 text-sm">Variablen & Zuschlaege</span>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <label className="text-sm text-slate-300 w-48">Lohn 2 - CNC inkl. Mann</label>
-                    <input type="number" step="1" value={variablen.lohn2} onChange={e => setVariablen(p => ({ ...p, lohn2: e.target.value }))}
-                      className={`w-24 text-right ${inputCls}`} /><span className="text-xs text-slate-400">EUR/h</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <label className="text-sm text-slate-300 w-48">Lohn 3 - Montage vor Ort</label>
-                    <input type="number" step="1" value={variablen.lohn3} onChange={e => setVariablen(p => ({ ...p, lohn3: e.target.value }))}
-                      className={`w-24 text-right ${inputCls}`} /><span className="text-xs text-slate-400">EUR/h</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <label className="text-sm text-slate-300 w-48">KFZ-Kosten</label>
-                    <input type="number" step="0.01" value={variablen.kfzKm} onChange={e => setVariablen(p => ({ ...p, kfzKm: e.target.value }))}
-                      className={`w-24 text-right ${inputCls}`} /><span className="text-xs text-slate-400">EUR/km</span>
-                  </div>
-                  <div className="col-span-2 text-xs font-bold text-slate-500 uppercase mt-3">Zuschlaege</div>
-                  {[
-                    ['Kleinteile-Zuschlag', 'kleinteile'],
-                    ['Marge auf Material', 'margeMaterial'],
-                    ['Marge auf Zukaufteile', 'margeZukauf'],
-                    ['WUG (Wagnis & Gewinn)', 'wug'],
-                    ['Rabatt', 'rabatt'],
-                    ['MWSt', 'mwst'],
-                  ].map(([label, key]) => (
-                    <div key={key} className="flex items-center gap-2">
-                      <label className="text-sm text-slate-300 w-48">{label}</label>
-                      <input type="number" step="1" value={zuschlaege[key]} onChange={e => setZuschlaege(p => ({ ...p, [key]: e.target.value }))}
-                        className={`w-20 text-right ${inputCls}`} /><span className="text-xs text-slate-400">%</span>
+                </button>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <div className="p-4">
+                  <div className="grid grid-cols-2 gap-x-6 gap-y-3">
+                    <div className="col-span-2 text-xs font-bold text-slate-500 uppercase">Lohnsaetze</div>
+                    <div className="flex items-center gap-2">
+                      <Label className="text-sm text-slate-300 w-48">Lohn 1 - Werkstatt</Label>
+                      <Input type="number" step="1" value={variablen.lohn1} onChange={e => setVariablen(p => ({ ...p, lohn1: e.target.value }))}
+                        className="w-24 text-right bg-slate-800/60 border-slate-600 text-slate-200 focus:ring-amber-500/50 focus:border-amber-500/50" /><span className="text-xs text-slate-400">EUR/h</span>
                     </div>
-                  ))}
+                    <div className="flex items-center gap-2">
+                      <Label className="text-sm text-slate-300 w-48">Lohn 2 - CNC inkl. Mann</Label>
+                      <Input type="number" step="1" value={variablen.lohn2} onChange={e => setVariablen(p => ({ ...p, lohn2: e.target.value }))}
+                        className="w-24 text-right bg-slate-800/60 border-slate-600 text-slate-200 focus:ring-amber-500/50 focus:border-amber-500/50" /><span className="text-xs text-slate-400">EUR/h</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Label className="text-sm text-slate-300 w-48">Lohn 3 - Montage vor Ort</Label>
+                      <Input type="number" step="1" value={variablen.lohn3} onChange={e => setVariablen(p => ({ ...p, lohn3: e.target.value }))}
+                        className="w-24 text-right bg-slate-800/60 border-slate-600 text-slate-200 focus:ring-amber-500/50 focus:border-amber-500/50" /><span className="text-xs text-slate-400">EUR/h</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Label className="text-sm text-slate-300 w-48">KFZ-Kosten</Label>
+                      <Input type="number" step="0.01" value={variablen.kfzKm} onChange={e => setVariablen(p => ({ ...p, kfzKm: e.target.value }))}
+                        className="w-24 text-right bg-slate-800/60 border-slate-600 text-slate-200 focus:ring-amber-500/50 focus:border-amber-500/50" /><span className="text-xs text-slate-400">EUR/km</span>
+                    </div>
+                    <div className="col-span-2 text-xs font-bold text-slate-500 uppercase mt-3">Zuschlaege</div>
+                    {[
+                      ['Kleinteile-Zuschlag', 'kleinteile'],
+                      ['Marge auf Material', 'margeMaterial'],
+                      ['Marge auf Zukaufteile', 'margeZukauf'],
+                      ['WUG (Wagnis & Gewinn)', 'wug'],
+                      ['Rabatt', 'rabatt'],
+                      ['MWSt', 'mwst'],
+                    ].map(([label, key]) => (
+                      <div key={key} className="flex items-center gap-2">
+                        <Label className="text-sm text-slate-300 w-48">{label}</Label>
+                        <Input type="number" step="1" value={zuschlaege[key]} onChange={e => setZuschlaege(p => ({ ...p, [key]: e.target.value }))}
+                          className="w-20 text-right bg-slate-800/60 border-slate-600 text-slate-200 focus:ring-amber-500/50 focus:border-amber-500/50" /><span className="text-xs text-slate-400">%</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            )}
-          </div>
+              </CollapsibleContent>
+            </div>
+          </Collapsible>
 
           {/* 4. Material (Platten) */}
-          <div className="glass-card overflow-hidden">
-            <SectionHeader title="Material (Platten)" summe={calc.sumPlatten} open={openSections.platten} onToggle={() => toggle('platten')} nr="4" />
-            {openSections.platten && (
-              <div>
-                <table className="w-full">
-                  <thead>
-                    <tr className="bg-slate-800/40">
-                      <th className={thCls}>Bezeichnung</th>
-                      <th className={`${thCls} w-20`}>Staerke</th>
-                      <th className={`${thCls} w-16 text-right`}>Verschn.%</th>
-                      <th className={`${thCls} w-24 text-right`}>EUR/qm</th>
-                      <th className={`${thCls} w-20 text-right`}>Menge qm</th>
-                      <th className={`${thCls} w-28 text-right`}>Summe</th>
-                      <th className={`${thCls} w-8`}></th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-700/30">
-                    {platten.map(r => {
-                      const menge = num(r.menge)
-                      const rohMenge = menge + (menge * num(r.verschnitt) / 100)
-                      const summe = rohMenge * num(r.preisQm)
-                      return (
-                        <tr key={r.id} className="hover:bg-slate-800/40 group">
-                          <td className="px-3 py-1.5"><InputCell value={r.bezeichnung} onChange={v => updateList(setPlatten)(r.id, 'bezeichnung', v)} placeholder="z.B. H1345 ST22" /></td>
-                          <td className="px-3 py-1.5"><InputCell value={r.staerke} onChange={v => updateList(setPlatten)(r.id, 'staerke', v)} placeholder="19mm" className="text-right" /></td>
-                          <td className="px-3 py-1.5"><InputCell type="number" step="1" value={r.verschnitt} onChange={v => updateList(setPlatten)(r.id, 'verschnitt', v)} className="text-right" /></td>
-                          <td className="px-3 py-1.5"><InputCell type="number" step="0.01" value={r.preisQm} onChange={v => updateList(setPlatten)(r.id, 'preisQm', v)} className="text-right" /></td>
-                          <td className="px-3 py-1.5"><InputCell type="number" step="0.01" value={r.menge} onChange={v => updateList(setPlatten)(r.id, 'menge', v)} className="text-right" /></td>
-                          <td className="px-3 py-1.5 text-sm text-right font-medium text-slate-300">{summe > 0 ? euro(summe) : '-'}</td>
-                          <td className="px-2 py-1.5"><RemoveBtn onClick={() => removeFromList(setPlatten)(r.id)} /></td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
-                <AddRowBtn onClick={() => setPlatten(p => [...p, mkRow(nid(), { staerke: '', verschnitt: 10, preisQm: 0, menge: 0 })])} />
-              </div>
-            )}
-          </div>
+          <Collapsible open={openSections.platten} onOpenChange={() => toggle('platten')}>
+            <div className="glass-card overflow-hidden">
+              <CollapsibleTrigger asChild>
+                <button className="w-full flex items-center justify-between px-4 py-3 bg-slate-800/60 hover:bg-slate-700/60 transition-colors border-b border-slate-700/50">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-slate-400 w-6">{openSections.platten ? '\u25BC' : '\u25B6'}</span>
+                    <span className="text-xs font-bold text-amber-500/70 uppercase">4</span>
+                    <span className="font-semibold text-slate-200 text-sm">Material (Platten)</span>
+                  </div>
+                  <span className="text-sm font-bold text-amber-400">{euro(calc.sumPlatten)}</span>
+                </button>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <div>
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-slate-800/40 border-slate-700/30">
+                        <TableHead className="text-xs text-slate-400 uppercase tracking-wider">Bezeichnung</TableHead>
+                        <TableHead className="text-xs text-slate-400 uppercase tracking-wider w-20">Staerke</TableHead>
+                        <TableHead className="text-xs text-slate-400 uppercase tracking-wider w-16 text-right">Verschn.%</TableHead>
+                        <TableHead className="text-xs text-slate-400 uppercase tracking-wider w-24 text-right">EUR/qm</TableHead>
+                        <TableHead className="text-xs text-slate-400 uppercase tracking-wider w-20 text-right">Menge qm</TableHead>
+                        <TableHead className="text-xs text-slate-400 uppercase tracking-wider w-28 text-right">Summe</TableHead>
+                        <TableHead className="w-8"></TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {platten.map(r => {
+                        const menge = num(r.menge)
+                        const rohMenge = menge + (menge * num(r.verschnitt) / 100)
+                        const summe = rohMenge * num(r.preisQm)
+                        return (
+                          <TableRow key={r.id} className="hover:bg-slate-800/40 group border-slate-700/30">
+                            <TableCell className="px-3 py-1.5"><InputCell value={r.bezeichnung} onChange={v => updateList(setPlatten)(r.id, 'bezeichnung', v)} placeholder="z.B. H1345 ST22" /></TableCell>
+                            <TableCell className="px-3 py-1.5"><InputCell value={r.staerke} onChange={v => updateList(setPlatten)(r.id, 'staerke', v)} placeholder="19mm" className="text-right" /></TableCell>
+                            <TableCell className="px-3 py-1.5"><InputCell type="number" step="1" value={r.verschnitt} onChange={v => updateList(setPlatten)(r.id, 'verschnitt', v)} className="text-right" /></TableCell>
+                            <TableCell className="px-3 py-1.5"><InputCell type="number" step="0.01" value={r.preisQm} onChange={v => updateList(setPlatten)(r.id, 'preisQm', v)} className="text-right" /></TableCell>
+                            <TableCell className="px-3 py-1.5"><InputCell type="number" step="0.01" value={r.menge} onChange={v => updateList(setPlatten)(r.id, 'menge', v)} className="text-right" /></TableCell>
+                            <TableCell className="px-3 py-1.5 text-sm text-right font-medium text-slate-300">{summe > 0 ? euro(summe) : '-'}</TableCell>
+                            <TableCell className="px-2 py-1.5">
+                              <Button variant="ghost" size="icon" onClick={() => removeFromList(setPlatten)(r.id)}
+                                className="text-slate-600 hover:text-red-400 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity" title="Entfernen">
+                                X
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        )
+                      })}
+                    </TableBody>
+                  </Table>
+                  <Button variant="ghost" size="sm" onClick={() => setPlatten(p => [...p, mkRow(nid(), { staerke: '', verschnitt: 10, preisQm: 0, menge: 0 })])}
+                    className="text-xs text-amber-500 hover:text-amber-400 font-medium px-4 py-1.5">
+                    + Zeile
+                  </Button>
+                </div>
+              </CollapsibleContent>
+            </div>
+          </Collapsible>
 
           {/* 4b. Massivholz */}
-          <div className="glass-card overflow-hidden">
-            <SectionHeader title="Massivholz" summe={calc.sumMassivholz} open={openSections.massivholz} onToggle={() => toggle('massivholz')} nr="4b" />
-            {openSections.massivholz && (
-              <div>
-                <table className="w-full">
-                  <thead>
-                    <tr className="bg-slate-800/40">
-                      <th className={thCls}>Bezeichnung</th>
-                      <th className={`${thCls} w-20`}>Staerke</th>
-                      <th className={`${thCls} w-16 text-right`}>Verschn.%</th>
-                      <th className={`${thCls} w-24 text-right`}>EUR/cbm</th>
-                      <th className={`${thCls} w-20 text-right`}>Menge cbm</th>
-                      <th className={`${thCls} w-28 text-right`}>Summe</th>
-                      <th className={`${thCls} w-8`}></th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-700/30">
-                    {massivholz.map(r => {
-                      const menge = num(r.menge)
-                      const rohMenge = menge + (menge * num(r.verschnitt) / 100)
-                      const summe = rohMenge * num(r.preisCbm)
-                      return (
-                        <tr key={r.id} className="hover:bg-slate-800/40 group">
-                          <td className="px-3 py-1.5"><InputCell value={r.bezeichnung} onChange={v => updateList(setMassivholz)(r.id, 'bezeichnung', v)} placeholder="z.B. Eiche" /></td>
-                          <td className="px-3 py-1.5"><InputCell value={r.staerke} onChange={v => updateList(setMassivholz)(r.id, 'staerke', v)} placeholder="40mm" className="text-right" /></td>
-                          <td className="px-3 py-1.5"><InputCell type="number" step="1" value={r.verschnitt} onChange={v => updateList(setMassivholz)(r.id, 'verschnitt', v)} className="text-right" /></td>
-                          <td className="px-3 py-1.5"><InputCell type="number" step="0.01" value={r.preisCbm} onChange={v => updateList(setMassivholz)(r.id, 'preisCbm', v)} className="text-right" /></td>
-                          <td className="px-3 py-1.5"><InputCell type="number" step="0.001" value={r.menge} onChange={v => updateList(setMassivholz)(r.id, 'menge', v)} className="text-right" /></td>
-                          <td className="px-3 py-1.5 text-sm text-right font-medium text-slate-300">{summe > 0 ? euro(summe) : '-'}</td>
-                          <td className="px-2 py-1.5"><RemoveBtn onClick={() => removeFromList(setMassivholz)(r.id)} /></td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
-                <AddRowBtn onClick={() => setMassivholz(p => [...p, mkRow(nid(), { staerke: '', verschnitt: 10, preisCbm: 0, menge: 0 })])} />
-              </div>
-            )}
-          </div>
+          <Collapsible open={openSections.massivholz} onOpenChange={() => toggle('massivholz')}>
+            <div className="glass-card overflow-hidden">
+              <CollapsibleTrigger asChild>
+                <button className="w-full flex items-center justify-between px-4 py-3 bg-slate-800/60 hover:bg-slate-700/60 transition-colors border-b border-slate-700/50">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-slate-400 w-6">{openSections.massivholz ? '\u25BC' : '\u25B6'}</span>
+                    <span className="text-xs font-bold text-amber-500/70 uppercase">4b</span>
+                    <span className="font-semibold text-slate-200 text-sm">Massivholz</span>
+                  </div>
+                  <span className="text-sm font-bold text-amber-400">{euro(calc.sumMassivholz)}</span>
+                </button>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <div>
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-slate-800/40 border-slate-700/30">
+                        <TableHead className="text-xs text-slate-400 uppercase tracking-wider">Bezeichnung</TableHead>
+                        <TableHead className="text-xs text-slate-400 uppercase tracking-wider w-20">Staerke</TableHead>
+                        <TableHead className="text-xs text-slate-400 uppercase tracking-wider w-16 text-right">Verschn.%</TableHead>
+                        <TableHead className="text-xs text-slate-400 uppercase tracking-wider w-24 text-right">EUR/cbm</TableHead>
+                        <TableHead className="text-xs text-slate-400 uppercase tracking-wider w-20 text-right">Menge cbm</TableHead>
+                        <TableHead className="text-xs text-slate-400 uppercase tracking-wider w-28 text-right">Summe</TableHead>
+                        <TableHead className="w-8"></TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {massivholz.map(r => {
+                        const menge = num(r.menge)
+                        const rohMenge = menge + (menge * num(r.verschnitt) / 100)
+                        const summe = rohMenge * num(r.preisCbm)
+                        return (
+                          <TableRow key={r.id} className="hover:bg-slate-800/40 group border-slate-700/30">
+                            <TableCell className="px-3 py-1.5"><InputCell value={r.bezeichnung} onChange={v => updateList(setMassivholz)(r.id, 'bezeichnung', v)} placeholder="z.B. Eiche" /></TableCell>
+                            <TableCell className="px-3 py-1.5"><InputCell value={r.staerke} onChange={v => updateList(setMassivholz)(r.id, 'staerke', v)} placeholder="40mm" className="text-right" /></TableCell>
+                            <TableCell className="px-3 py-1.5"><InputCell type="number" step="1" value={r.verschnitt} onChange={v => updateList(setMassivholz)(r.id, 'verschnitt', v)} className="text-right" /></TableCell>
+                            <TableCell className="px-3 py-1.5"><InputCell type="number" step="0.01" value={r.preisCbm} onChange={v => updateList(setMassivholz)(r.id, 'preisCbm', v)} className="text-right" /></TableCell>
+                            <TableCell className="px-3 py-1.5"><InputCell type="number" step="0.001" value={r.menge} onChange={v => updateList(setMassivholz)(r.id, 'menge', v)} className="text-right" /></TableCell>
+                            <TableCell className="px-3 py-1.5 text-sm text-right font-medium text-slate-300">{summe > 0 ? euro(summe) : '-'}</TableCell>
+                            <TableCell className="px-2 py-1.5">
+                              <Button variant="ghost" size="icon" onClick={() => removeFromList(setMassivholz)(r.id)}
+                                className="text-slate-600 hover:text-red-400 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity" title="Entfernen">
+                                X
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        )
+                      })}
+                    </TableBody>
+                  </Table>
+                  <Button variant="ghost" size="sm" onClick={() => setMassivholz(p => [...p, mkRow(nid(), { staerke: '', verschnitt: 10, preisCbm: 0, menge: 0 })])}
+                    className="text-xs text-amber-500 hover:text-amber-400 font-medium px-4 py-1.5">
+                    + Zeile
+                  </Button>
+                </div>
+              </CollapsibleContent>
+            </div>
+          </Collapsible>
 
           {/* 5. Kanten */}
-          <div className="glass-card overflow-hidden">
-            <SectionHeader title="Kanten" summe={calc.sumKanten} open={openSections.kanten} onToggle={() => toggle('kanten')} nr="5" />
-            {openSections.kanten && (
-              <div>
-                <table className="w-full">
-                  <thead>
-                    <tr className="bg-slate-800/40">
-                      <th className={thCls}>Bezeichnung</th>
-                      <th className={`${thCls} w-24 text-right`}>Laenge m</th>
-                      <th className={`${thCls} w-28 text-right`}>Bearbeitung EUR/m</th>
-                      <th className={`${thCls} w-24 text-right`}>Kante EUR/m</th>
-                      <th className={`${thCls} w-28 text-right`}>Summe</th>
-                      <th className={`${thCls} w-8`}></th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-700/30">
-                    {kanten.map(r => {
-                      const s = num(r.laenge) * (num(r.bearbeitung) + num(r.kantePreis))
-                      return (
-                        <tr key={r.id} className="hover:bg-slate-800/40 group">
-                          <td className="px-3 py-1.5"><InputCell value={r.bezeichnung} onChange={v => updateList(setKanten)(r.id, 'bezeichnung', v)} placeholder="ABS..." /></td>
-                          <td className="px-3 py-1.5"><InputCell type="number" step="0.1" value={r.laenge} onChange={v => updateList(setKanten)(r.id, 'laenge', v)} className="text-right" /></td>
-                          <td className="px-3 py-1.5"><InputCell type="number" step="0.01" value={r.bearbeitung} onChange={v => updateList(setKanten)(r.id, 'bearbeitung', v)} className="text-right" /></td>
-                          <td className="px-3 py-1.5"><InputCell type="number" step="0.01" value={r.kantePreis} onChange={v => updateList(setKanten)(r.id, 'kantePreis', v)} className="text-right" /></td>
-                          <td className="px-3 py-1.5 text-sm text-right font-medium text-slate-300">{s > 0 ? euro(s) : '-'}</td>
-                          <td className="px-2 py-1.5"><RemoveBtn onClick={() => removeFromList(setKanten)(r.id)} /></td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
-                <AddRowBtn onClick={() => setKanten(p => [...p, mkRow(nid(), { laenge: 0, bearbeitung: 1, kantePreis: 1 })])} />
-              </div>
-            )}
-          </div>
+          <Collapsible open={openSections.kanten} onOpenChange={() => toggle('kanten')}>
+            <div className="glass-card overflow-hidden">
+              <CollapsibleTrigger asChild>
+                <button className="w-full flex items-center justify-between px-4 py-3 bg-slate-800/60 hover:bg-slate-700/60 transition-colors border-b border-slate-700/50">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-slate-400 w-6">{openSections.kanten ? '\u25BC' : '\u25B6'}</span>
+                    <span className="text-xs font-bold text-amber-500/70 uppercase">5</span>
+                    <span className="font-semibold text-slate-200 text-sm">Kanten</span>
+                  </div>
+                  <span className="text-sm font-bold text-amber-400">{euro(calc.sumKanten)}</span>
+                </button>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <div>
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-slate-800/40 border-slate-700/30">
+                        <TableHead className="text-xs text-slate-400 uppercase tracking-wider">Bezeichnung</TableHead>
+                        <TableHead className="text-xs text-slate-400 uppercase tracking-wider w-24 text-right">Laenge m</TableHead>
+                        <TableHead className="text-xs text-slate-400 uppercase tracking-wider w-28 text-right">Bearbeitung EUR/m</TableHead>
+                        <TableHead className="text-xs text-slate-400 uppercase tracking-wider w-24 text-right">Kante EUR/m</TableHead>
+                        <TableHead className="text-xs text-slate-400 uppercase tracking-wider w-28 text-right">Summe</TableHead>
+                        <TableHead className="w-8"></TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {kanten.map(r => {
+                        const s = num(r.laenge) * (num(r.bearbeitung) + num(r.kantePreis))
+                        return (
+                          <TableRow key={r.id} className="hover:bg-slate-800/40 group border-slate-700/30">
+                            <TableCell className="px-3 py-1.5"><InputCell value={r.bezeichnung} onChange={v => updateList(setKanten)(r.id, 'bezeichnung', v)} placeholder="ABS..." /></TableCell>
+                            <TableCell className="px-3 py-1.5"><InputCell type="number" step="0.1" value={r.laenge} onChange={v => updateList(setKanten)(r.id, 'laenge', v)} className="text-right" /></TableCell>
+                            <TableCell className="px-3 py-1.5"><InputCell type="number" step="0.01" value={r.bearbeitung} onChange={v => updateList(setKanten)(r.id, 'bearbeitung', v)} className="text-right" /></TableCell>
+                            <TableCell className="px-3 py-1.5"><InputCell type="number" step="0.01" value={r.kantePreis} onChange={v => updateList(setKanten)(r.id, 'kantePreis', v)} className="text-right" /></TableCell>
+                            <TableCell className="px-3 py-1.5 text-sm text-right font-medium text-slate-300">{s > 0 ? euro(s) : '-'}</TableCell>
+                            <TableCell className="px-2 py-1.5">
+                              <Button variant="ghost" size="icon" onClick={() => removeFromList(setKanten)(r.id)}
+                                className="text-slate-600 hover:text-red-400 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity" title="Entfernen">
+                                X
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        )
+                      })}
+                    </TableBody>
+                  </Table>
+                  <Button variant="ghost" size="sm" onClick={() => setKanten(p => [...p, mkRow(nid(), { laenge: 0, bearbeitung: 1, kantePreis: 1 })])}
+                    className="text-xs text-amber-500 hover:text-amber-400 font-medium px-4 py-1.5">
+                    + Zeile
+                  </Button>
+                </div>
+              </CollapsibleContent>
+            </div>
+          </Collapsible>
 
           {/* 6. Halbzeuge (Glas etc.) */}
-          <div className="glass-card overflow-hidden">
-            <SectionHeader title="Halbzeuge (Glas etc.)" summe={calc.sumHalbzeuge} open={openSections.halbzeuge} onToggle={() => toggle('halbzeuge')} nr="6" />
-            {openSections.halbzeuge && (
-              <SimpleItemTable rows={halbzeuge} setter={setHalbzeuge} update={updateList(setHalbzeuge)} remove={removeFromList(setHalbzeuge)} nid={nid} />
-            )}
-          </div>
+          <Collapsible open={openSections.halbzeuge} onOpenChange={() => toggle('halbzeuge')}>
+            <div className="glass-card overflow-hidden">
+              <CollapsibleTrigger asChild>
+                <button className="w-full flex items-center justify-between px-4 py-3 bg-slate-800/60 hover:bg-slate-700/60 transition-colors border-b border-slate-700/50">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-slate-400 w-6">{openSections.halbzeuge ? '\u25BC' : '\u25B6'}</span>
+                    <span className="text-xs font-bold text-amber-500/70 uppercase">6</span>
+                    <span className="font-semibold text-slate-200 text-sm">Halbzeuge (Glas etc.)</span>
+                  </div>
+                  <span className="text-sm font-bold text-amber-400">{euro(calc.sumHalbzeuge)}</span>
+                </button>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <SimpleItemTable rows={halbzeuge} setter={setHalbzeuge} update={updateList(setHalbzeuge)} remove={removeFromList(setHalbzeuge)} nid={nid} />
+              </CollapsibleContent>
+            </div>
+          </Collapsible>
 
           {/* 7. Beschlaege */}
-          <div className="glass-card overflow-hidden">
-            <SectionHeader title="Beschlaege" summe={calc.sumBeschlaege} open={openSections.beschlaege} onToggle={() => toggle('beschlaege')} nr="7" />
-            {openSections.beschlaege && (
-              <SimpleItemTable rows={beschlaege} setter={setBeschlaege} update={updateList(setBeschlaege)} remove={removeFromList(setBeschlaege)} nid={nid} />
-            )}
-          </div>
+          <Collapsible open={openSections.beschlaege} onOpenChange={() => toggle('beschlaege')}>
+            <div className="glass-card overflow-hidden">
+              <CollapsibleTrigger asChild>
+                <button className="w-full flex items-center justify-between px-4 py-3 bg-slate-800/60 hover:bg-slate-700/60 transition-colors border-b border-slate-700/50">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-slate-400 w-6">{openSections.beschlaege ? '\u25BC' : '\u25B6'}</span>
+                    <span className="text-xs font-bold text-amber-500/70 uppercase">7</span>
+                    <span className="font-semibold text-slate-200 text-sm">Beschlaege</span>
+                  </div>
+                  <span className="text-sm font-bold text-amber-400">{euro(calc.sumBeschlaege)}</span>
+                </button>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <SimpleItemTable rows={beschlaege} setter={setBeschlaege} update={updateList(setBeschlaege)} remove={removeFromList(setBeschlaege)} nid={nid} />
+              </CollapsibleContent>
+            </div>
+          </Collapsible>
 
           {/* 8. Lacke, Beizen, Oele */}
-          <div className="glass-card overflow-hidden">
-            <SectionHeader title="Lacke, Beizen, Oele" summe={calc.sumLacke} open={openSections.lacke} onToggle={() => toggle('lacke')} nr="8" />
-            {openSections.lacke && (
-              <div>
-                <table className="w-full">
-                  <thead>
-                    <tr className="bg-slate-800/40">
-                      <th className={thCls}>Bezeichnung</th>
-                      <th className={`${thCls} w-24 text-right`}>Liter</th>
-                      <th className={`${thCls} w-24 text-right`}>EUR/Liter</th>
-                      <th className={`${thCls} w-28 text-right`}>Summe</th>
-                      <th className={`${thCls} w-8`}></th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-700/30">
-                    {lacke.map(r => {
-                      const s = num(r.liter) * num(r.preis)
-                      return (
-                        <tr key={r.id} className="hover:bg-slate-800/40 group">
-                          <td className="px-3 py-1.5"><InputCell value={r.bezeichnung} onChange={v => updateList(setLacke)(r.id, 'bezeichnung', v)} placeholder="Lack..." /></td>
-                          <td className="px-3 py-1.5"><InputCell type="number" step="0.1" value={r.liter} onChange={v => updateList(setLacke)(r.id, 'liter', v)} className="text-right" /></td>
-                          <td className="px-3 py-1.5"><InputCell type="number" step="0.01" value={r.preis} onChange={v => updateList(setLacke)(r.id, 'preis', v)} className="text-right" /></td>
-                          <td className="px-3 py-1.5 text-sm text-right font-medium text-slate-300">{s > 0 ? euro(s) : '-'}</td>
-                          <td className="px-2 py-1.5"><RemoveBtn onClick={() => removeFromList(setLacke)(r.id)} /></td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
-                <AddRowBtn onClick={() => setLacke(p => [...p, mkRow(nid(), { liter: 0, preis: 0 })])} />
-              </div>
-            )}
-          </div>
+          <Collapsible open={openSections.lacke} onOpenChange={() => toggle('lacke')}>
+            <div className="glass-card overflow-hidden">
+              <CollapsibleTrigger asChild>
+                <button className="w-full flex items-center justify-between px-4 py-3 bg-slate-800/60 hover:bg-slate-700/60 transition-colors border-b border-slate-700/50">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-slate-400 w-6">{openSections.lacke ? '\u25BC' : '\u25B6'}</span>
+                    <span className="text-xs font-bold text-amber-500/70 uppercase">8</span>
+                    <span className="font-semibold text-slate-200 text-sm">Lacke, Beizen, Oele</span>
+                  </div>
+                  <span className="text-sm font-bold text-amber-400">{euro(calc.sumLacke)}</span>
+                </button>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <div>
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-slate-800/40 border-slate-700/30">
+                        <TableHead className="text-xs text-slate-400 uppercase tracking-wider">Bezeichnung</TableHead>
+                        <TableHead className="text-xs text-slate-400 uppercase tracking-wider w-24 text-right">Liter</TableHead>
+                        <TableHead className="text-xs text-slate-400 uppercase tracking-wider w-24 text-right">EUR/Liter</TableHead>
+                        <TableHead className="text-xs text-slate-400 uppercase tracking-wider w-28 text-right">Summe</TableHead>
+                        <TableHead className="w-8"></TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {lacke.map(r => {
+                        const s = num(r.liter) * num(r.preis)
+                        return (
+                          <TableRow key={r.id} className="hover:bg-slate-800/40 group border-slate-700/30">
+                            <TableCell className="px-3 py-1.5"><InputCell value={r.bezeichnung} onChange={v => updateList(setLacke)(r.id, 'bezeichnung', v)} placeholder="Lack..." /></TableCell>
+                            <TableCell className="px-3 py-1.5"><InputCell type="number" step="0.1" value={r.liter} onChange={v => updateList(setLacke)(r.id, 'liter', v)} className="text-right" /></TableCell>
+                            <TableCell className="px-3 py-1.5"><InputCell type="number" step="0.01" value={r.preis} onChange={v => updateList(setLacke)(r.id, 'preis', v)} className="text-right" /></TableCell>
+                            <TableCell className="px-3 py-1.5 text-sm text-right font-medium text-slate-300">{s > 0 ? euro(s) : '-'}</TableCell>
+                            <TableCell className="px-2 py-1.5">
+                              <Button variant="ghost" size="icon" onClick={() => removeFromList(setLacke)(r.id)}
+                                className="text-slate-600 hover:text-red-400 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity" title="Entfernen">
+                                X
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        )
+                      })}
+                    </TableBody>
+                  </Table>
+                  <Button variant="ghost" size="sm" onClick={() => setLacke(p => [...p, mkRow(nid(), { liter: 0, preis: 0 })])}
+                    className="text-xs text-amber-500 hover:text-amber-400 font-medium px-4 py-1.5">
+                    + Zeile
+                  </Button>
+                </div>
+              </CollapsibleContent>
+            </div>
+          </Collapsible>
 
           {/* 9. Zukaufteile (mit KI-Preissuche) */}
-          <div className="glass-card overflow-hidden">
-            <SectionHeader title="Zukaufteile" summe={calc.sumZukauf} open={openSections.zukaufteile} onToggle={() => toggle('zukaufteile')} nr="9" />
-            {openSections.zukaufteile && (
-              <div>
-                {/* Batch-Suche Button */}
-                <div className="px-4 py-2 border-b border-slate-700/50 flex items-center justify-between" style={{ background: 'linear-gradient(90deg, rgba(147,51,234,0.08), rgba(59,130,246,0.08))' }}>
-                  <span className="text-xs text-slate-400">Bezeichnung eingeben, dann KI-Suche starten - Preis, Name & Link werden automatisch gefuellt</span>
-                  <button
-                    onClick={searchAllZukaufteile}
-                    disabled={!zukaufteile.some(r => (r.bezeichnung || '').trim() && num(r.preis) === 0)}
-                    className="text-xs font-medium px-3 py-1 rounded-md bg-purple-600 text-white hover:bg-purple-700 disabled:bg-slate-700 disabled:text-slate-500 disabled:cursor-not-allowed transition-colors"
-                  >
-                    Alle ohne Preis suchen
-                  </button>
-                </div>
-                <table className="w-full">
-                  <thead>
-                    <tr className="bg-slate-800/40">
-                      <th className={thCls}>Bezeichnung</th>
-                      <th className={`${thCls} w-28`}>Marke</th>
-                      <th className={`${thCls} w-8`}></th>
-                      <th className={`${thCls} w-8`}></th>
-                      <th className={`${thCls} w-16 text-right`}>Anz.</th>
-                      <th className={`${thCls} w-16`}>Einh.</th>
-                      <th className={`${thCls} w-24 text-right`}>EUR/Einh.</th>
-                      <th className={`${thCls} w-28 text-right`}>Summe</th>
-                      <th className={`${thCls} w-8`}></th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-700/30">
-                    {zukaufteile.map(r => {
-                      const s = num(r.anzahl) * num(r.preis)
-                      const search = zkSearch[r.id]
-                      return (
-                        <tr key={r.id} className="hover:bg-slate-800/40 group relative">
-                          <td className="px-3 py-1.5 relative">
-                            <div className="flex items-center gap-1">
-                              <InputCell value={r.bezeichnung} onChange={v => updateList(setZukaufteile)(r.id, 'bezeichnung', v)} placeholder="z.B. Scharnier Blum CLIP top" />
-                              <button
-                                onClick={() => searchZukaufteil(r.id)}
-                                disabled={!(r.bezeichnung || '').trim() || search?.loading}
-                                className="shrink-0 w-7 h-7 flex items-center justify-center rounded-md bg-purple-500/20 text-purple-400 hover:bg-purple-500/30 disabled:bg-slate-700/50 disabled:text-slate-600 disabled:cursor-not-allowed transition-colors"
-                                title="KI-Preissuche starten"
-                              >
-                                {search?.loading ? (
-                                  <span className="animate-spin text-xs">&#9696;</span>
-                                ) : (
-                                  <span className="text-sm">&#x1F50D;</span>
-                                )}
-                              </button>
-                            </div>
-                            {/* Suchergebnis-Dropdown */}
-                            {search?.treffer && search.treffer.length > 0 && (
-                              <div className="absolute left-0 top-full z-50 w-[500px] bg-slate-800 border border-slate-600 rounded-lg shadow-2xl mt-1 max-h-64 overflow-y-auto">
-                                <div className="px-3 py-1.5 bg-slate-700/50 border-b border-slate-600 flex items-center justify-between">
-                                  <span className="text-xs font-semibold text-slate-300">{search.treffer.length} Treffer</span>
-                                  <button onClick={() => setZkSearch(prev => { const n = { ...prev }; delete n[r.id]; return n })}
-                                    className="text-xs text-slate-400 hover:text-red-400">X</button>
+          <Collapsible open={openSections.zukaufteile} onOpenChange={() => toggle('zukaufteile')}>
+            <div className="glass-card overflow-hidden">
+              <CollapsibleTrigger asChild>
+                <button className="w-full flex items-center justify-between px-4 py-3 bg-slate-800/60 hover:bg-slate-700/60 transition-colors border-b border-slate-700/50">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-slate-400 w-6">{openSections.zukaufteile ? '\u25BC' : '\u25B6'}</span>
+                    <span className="text-xs font-bold text-amber-500/70 uppercase">9</span>
+                    <span className="font-semibold text-slate-200 text-sm">Zukaufteile</span>
+                  </div>
+                  <span className="text-sm font-bold text-amber-400">{euro(calc.sumZukauf)}</span>
+                </button>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <div>
+                  {/* Batch-Suche Button */}
+                  <div className="px-4 py-2 border-b border-slate-700/50 flex items-center justify-between" style={{ background: 'linear-gradient(90deg, rgba(147,51,234,0.08), rgba(59,130,246,0.08))' }}>
+                    <span className="text-xs text-slate-400">Bezeichnung eingeben, dann KI-Suche starten - Preis, Name & Link werden automatisch gefuellt</span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={searchAllZukaufteile}
+                      disabled={!zukaufteile.some(r => (r.bezeichnung || '').trim() && num(r.preis) === 0)}
+                      className="text-xs font-medium bg-purple-600 text-white hover:bg-purple-700 disabled:bg-slate-700 disabled:text-slate-500 border-0"
+                    >
+                      Alle ohne Preis suchen
+                    </Button>
+                  </div>
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-slate-800/40 border-slate-700/30">
+                        <TableHead className="text-xs text-slate-400 uppercase tracking-wider">Bezeichnung</TableHead>
+                        <TableHead className="text-xs text-slate-400 uppercase tracking-wider w-28">Marke</TableHead>
+                        <TableHead className="text-xs text-slate-400 uppercase tracking-wider w-8"></TableHead>
+                        <TableHead className="text-xs text-slate-400 uppercase tracking-wider w-8"></TableHead>
+                        <TableHead className="text-xs text-slate-400 uppercase tracking-wider w-16 text-right">Anz.</TableHead>
+                        <TableHead className="text-xs text-slate-400 uppercase tracking-wider w-16">Einh.</TableHead>
+                        <TableHead className="text-xs text-slate-400 uppercase tracking-wider w-24 text-right">EUR/Einh.</TableHead>
+                        <TableHead className="text-xs text-slate-400 uppercase tracking-wider w-28 text-right">Summe</TableHead>
+                        <TableHead className="w-8"></TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {zukaufteile.map(r => {
+                        const s = num(r.anzahl) * num(r.preis)
+                        const search = zkSearch[r.id]
+                        return (
+                          <TableRow key={r.id} className="hover:bg-slate-800/40 group relative border-slate-700/30">
+                            <TableCell className="px-3 py-1.5 relative">
+                              <div className="flex items-center gap-1">
+                                <InputCell value={r.bezeichnung} onChange={v => updateList(setZukaufteile)(r.id, 'bezeichnung', v)} placeholder="z.B. Scharnier Blum CLIP top" />
+                                <button
+                                  onClick={() => searchZukaufteil(r.id)}
+                                  disabled={!(r.bezeichnung || '').trim() || search?.loading}
+                                  className="shrink-0 w-7 h-7 flex items-center justify-center rounded-md bg-purple-500/20 text-purple-400 hover:bg-purple-500/30 disabled:bg-slate-700/50 disabled:text-slate-600 disabled:cursor-not-allowed transition-colors"
+                                  title="KI-Preissuche starten"
+                                >
+                                  {search?.loading ? (
+                                    <span className="animate-spin text-xs">&#9696;</span>
+                                  ) : (
+                                    <span className="text-sm">&#x1F50D;</span>
+                                  )}
+                                </button>
+                              </div>
+                              {/* Suchergebnis-Dropdown */}
+                              {search?.treffer && search.treffer.length > 0 && (
+                                <div className="absolute left-0 top-full z-50 w-[500px] bg-slate-800 border border-slate-600 rounded-lg shadow-2xl mt-1 max-h-64 overflow-y-auto">
+                                  <div className="px-3 py-1.5 bg-slate-700/50 border-b border-slate-600 flex items-center justify-between">
+                                    <span className="text-xs font-semibold text-slate-300">{search.treffer.length} Treffer</span>
+                                    <button onClick={() => setZkSearch(prev => { const n = { ...prev }; delete n[r.id]; return n })}
+                                      className="text-xs text-slate-400 hover:text-red-400">X</button>
+                                  </div>
+                                  {search.treffer.map((t, i) => (
+                                    <button key={i} onClick={() => applyZkTreffer(r.id, t)}
+                                      className="w-full text-left px-3 py-2 hover:bg-purple-500/10 border-b border-slate-700/50 last:border-0 transition-colors">
+                                      <div className="flex items-center justify-between gap-2">
+                                        <span className="text-sm text-slate-200 truncate flex-1">{t.titel}</span>
+                                        <span className="text-sm font-bold text-green-400 shrink-0">{t.preis > 0 ? euro(t.preis) : 'k.A.'}</span>
+                                      </div>
+                                      <div className="flex items-center gap-2 mt-0.5">
+                                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-700 text-slate-400">{t.quelle}</span>
+                                        {t.shop && <span className="text-[10px] text-slate-500">{t.shop}</span>}
+                                        {t.artikel_nr && <span className="text-[10px] text-slate-500">Art. {t.artikel_nr}</span>}
+                                      </div>
+                                    </button>
+                                  ))}
                                 </div>
-                                {search.treffer.map((t, i) => (
-                                  <button key={i} onClick={() => applyZkTreffer(r.id, t)}
-                                    className="w-full text-left px-3 py-2 hover:bg-purple-500/10 border-b border-slate-700/50 last:border-0 transition-colors">
-                                    <div className="flex items-center justify-between gap-2">
-                                      <span className="text-sm text-slate-200 truncate flex-1">{t.titel}</span>
-                                      <span className="text-sm font-bold text-green-400 shrink-0">{t.preis > 0 ? euro(t.preis) : 'k.A.'}</span>
-                                    </div>
-                                    <div className="flex items-center gap-2 mt-0.5">
-                                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-700 text-slate-400">{t.quelle}</span>
-                                      {t.shop && <span className="text-[10px] text-slate-500">{t.shop}</span>}
-                                      {t.artikel_nr && <span className="text-[10px] text-slate-500">Art. {t.artikel_nr}</span>}
-                                    </div>
-                                  </button>
-                                ))}
-                              </div>
-                            )}
-                            {search?.error && (
-                              <div className="absolute left-0 top-full z-50 bg-red-500/10 border border-red-500/30 rounded-lg shadow-lg mt-1 px-3 py-2">
-                                <span className="text-xs text-red-400">{search.error}</span>
-                                <button onClick={() => setZkSearch(prev => { const n = { ...prev }; delete n[r.id]; return n })}
-                                  className="ml-2 text-xs text-red-500/60 hover:text-red-400">X</button>
-                              </div>
-                            )}
-                          </td>
-                          <td className="px-3 py-1.5"><InputCell value={r.marke} onChange={v => updateList(setZukaufteile)(r.id, 'marke', v)} placeholder="Blum, Haefele..." /></td>
-                          <td className="px-1 py-1.5 text-center">
-                            {r.link ? (
-                              <a href={r.link} target="_blank" rel="noopener noreferrer"
-                                className="text-blue-500 hover:text-blue-700 text-sm" title={r.link}>
-                                &#x2197;
-                              </a>
-                            ) : (
-                              <button
-                                onClick={() => {
-                                  const url = prompt('Produkt-Link (URL) eingeben:')
-                                  if (url) updateList(setZukaufteile)(r.id, 'link', url)
-                                }}
-                                className="text-slate-300 hover:text-blue-500 text-sm" title="Link hinzufuegen"
-                              >
-                                +
-                              </button>
-                            )}
-                          </td>
-                          <td className="px-1 py-1.5 text-center">
-                            {search?.loading && <span className="text-xs text-purple-500 animate-pulse">...</span>}
-                          </td>
-                          <td className="px-3 py-1.5"><InputCell type="number" step="1" value={r.anzahl} onChange={v => updateList(setZukaufteile)(r.id, 'anzahl', v)} className="text-right" /></td>
-                          <td className="px-3 py-1.5"><InputCell value={r.einheit} onChange={v => updateList(setZukaufteile)(r.id, 'einheit', v)} className="w-14" /></td>
-                          <td className="px-3 py-1.5"><InputCell type="number" step="0.01" value={r.preis} onChange={v => updateList(setZukaufteile)(r.id, 'preis', v)} className="text-right" /></td>
-                          <td className="px-3 py-1.5 text-sm text-right font-medium text-slate-300">{s > 0 ? euro(s) : '-'}</td>
-                          <td className="px-2 py-1.5"><RemoveBtn onClick={() => removeFromList(setZukaufteile)(r.id)} /></td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
-                <AddRowBtn onClick={() => setZukaufteile(p => [...p, mkRow(nid(), { marke: '', link: '', anzahl: 0, einheit: 'Stk', preis: 0 })])} />
-              </div>
-            )}
-          </div>
+                              )}
+                              {search?.error && (
+                                <div className="absolute left-0 top-full z-50 bg-red-500/10 border border-red-500/30 rounded-lg shadow-lg mt-1 px-3 py-2">
+                                  <span className="text-xs text-red-400">{search.error}</span>
+                                  <button onClick={() => setZkSearch(prev => { const n = { ...prev }; delete n[r.id]; return n })}
+                                    className="ml-2 text-xs text-red-500/60 hover:text-red-400">X</button>
+                                </div>
+                              )}
+                            </TableCell>
+                            <TableCell className="px-3 py-1.5"><InputCell value={r.marke} onChange={v => updateList(setZukaufteile)(r.id, 'marke', v)} placeholder="Blum, Haefele..." /></TableCell>
+                            <TableCell className="px-1 py-1.5 text-center">
+                              {r.link ? (
+                                <a href={r.link} target="_blank" rel="noopener noreferrer"
+                                  className="text-blue-500 hover:text-blue-700 text-sm" title={r.link}>
+                                  &#x2197;
+                                </a>
+                              ) : (
+                                <button
+                                  onClick={() => {
+                                    const url = prompt('Produkt-Link (URL) eingeben:')
+                                    if (url) updateList(setZukaufteile)(r.id, 'link', url)
+                                  }}
+                                  className="text-slate-300 hover:text-blue-500 text-sm" title="Link hinzufuegen"
+                                >
+                                  +
+                                </button>
+                              )}
+                            </TableCell>
+                            <TableCell className="px-1 py-1.5 text-center">
+                              {search?.loading && <span className="text-xs text-purple-500 animate-pulse">...</span>}
+                            </TableCell>
+                            <TableCell className="px-3 py-1.5"><InputCell type="number" step="1" value={r.anzahl} onChange={v => updateList(setZukaufteile)(r.id, 'anzahl', v)} className="text-right" /></TableCell>
+                            <TableCell className="px-3 py-1.5"><InputCell value={r.einheit} onChange={v => updateList(setZukaufteile)(r.id, 'einheit', v)} className="w-14" /></TableCell>
+                            <TableCell className="px-3 py-1.5"><InputCell type="number" step="0.01" value={r.preis} onChange={v => updateList(setZukaufteile)(r.id, 'preis', v)} className="text-right" /></TableCell>
+                            <TableCell className="px-3 py-1.5 text-sm text-right font-medium text-slate-300">{s > 0 ? euro(s) : '-'}</TableCell>
+                            <TableCell className="px-2 py-1.5">
+                              <Button variant="ghost" size="icon" onClick={() => removeFromList(setZukaufteile)(r.id)}
+                                className="text-slate-600 hover:text-red-400 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity" title="Entfernen">
+                                X
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        )
+                      })}
+                    </TableBody>
+                  </Table>
+                  <Button variant="ghost" size="sm" onClick={() => setZukaufteile(p => [...p, mkRow(nid(), { marke: '', link: '', anzahl: 0, einheit: 'Stk', preis: 0 })])}
+                    className="text-xs text-amber-500 hover:text-amber-400 font-medium px-4 py-1.5">
+                    + Zeile
+                  </Button>
+                </div>
+              </CollapsibleContent>
+            </div>
+          </Collapsible>
 
           {/* 10. Fremdmaterial vom AG */}
-          <div className="glass-card overflow-hidden">
-            <SectionHeader title="Fremdmaterial (vom AG)" summe={calc.sumFremd} open={openSections.fremdmaterial} onToggle={() => toggle('fremdmaterial')} nr="10" />
-            {openSections.fremdmaterial && (
-              <div>
-                <table className="w-full">
-                  <thead>
-                    <tr className="bg-slate-800/40">
-                      <th className={thCls}>Bezeichnung</th>
-                      <th className={`${thCls} w-20 text-right`}>Anzahl</th>
-                      <th className={`${thCls} w-24 text-right`}>EUR/Einh.</th>
-                      <th className={`${thCls} w-20 text-right`}>Handling %</th>
-                      <th className={`${thCls} w-28 text-right`}>Handlingfee</th>
-                      <th className={`${thCls} w-8`}></th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-700/30">
-                    {fremdmaterial.map(r => {
-                      const s = num(r.anzahl) * num(r.preis) * num(r.handlingPct) / 100
-                      return (
-                        <tr key={r.id} className="hover:bg-slate-800/40 group">
-                          <td className="px-3 py-1.5"><InputCell value={r.bezeichnung} onChange={v => updateList(setFremdmaterial)(r.id, 'bezeichnung', v)} placeholder="Material..." /></td>
-                          <td className="px-3 py-1.5"><InputCell type="number" step="1" value={r.anzahl} onChange={v => updateList(setFremdmaterial)(r.id, 'anzahl', v)} className="text-right" /></td>
-                          <td className="px-3 py-1.5"><InputCell type="number" step="0.01" value={r.preis} onChange={v => updateList(setFremdmaterial)(r.id, 'preis', v)} className="text-right" /></td>
-                          <td className="px-3 py-1.5"><InputCell type="number" step="1" value={r.handlingPct} onChange={v => updateList(setFremdmaterial)(r.id, 'handlingPct', v)} className="text-right" /></td>
-                          <td className="px-3 py-1.5 text-sm text-right font-medium text-slate-300">{s > 0 ? euro(s) : '-'}</td>
-                          <td className="px-2 py-1.5"><RemoveBtn onClick={() => removeFromList(setFremdmaterial)(r.id)} /></td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
-                <AddRowBtn onClick={() => setFremdmaterial(p => [...p, mkRow(nid(), { anzahl: 0, preis: 0, handlingPct: 10 })])} />
-              </div>
-            )}
-          </div>
+          <Collapsible open={openSections.fremdmaterial} onOpenChange={() => toggle('fremdmaterial')}>
+            <div className="glass-card overflow-hidden">
+              <CollapsibleTrigger asChild>
+                <button className="w-full flex items-center justify-between px-4 py-3 bg-slate-800/60 hover:bg-slate-700/60 transition-colors border-b border-slate-700/50">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-slate-400 w-6">{openSections.fremdmaterial ? '\u25BC' : '\u25B6'}</span>
+                    <span className="text-xs font-bold text-amber-500/70 uppercase">10</span>
+                    <span className="font-semibold text-slate-200 text-sm">Fremdmaterial (vom AG)</span>
+                  </div>
+                  <span className="text-sm font-bold text-amber-400">{euro(calc.sumFremd)}</span>
+                </button>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <div>
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-slate-800/40 border-slate-700/30">
+                        <TableHead className="text-xs text-slate-400 uppercase tracking-wider">Bezeichnung</TableHead>
+                        <TableHead className="text-xs text-slate-400 uppercase tracking-wider w-20 text-right">Anzahl</TableHead>
+                        <TableHead className="text-xs text-slate-400 uppercase tracking-wider w-24 text-right">EUR/Einh.</TableHead>
+                        <TableHead className="text-xs text-slate-400 uppercase tracking-wider w-20 text-right">Handling %</TableHead>
+                        <TableHead className="text-xs text-slate-400 uppercase tracking-wider w-28 text-right">Handlingfee</TableHead>
+                        <TableHead className="w-8"></TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {fremdmaterial.map(r => {
+                        const s = num(r.anzahl) * num(r.preis) * num(r.handlingPct) / 100
+                        return (
+                          <TableRow key={r.id} className="hover:bg-slate-800/40 group border-slate-700/30">
+                            <TableCell className="px-3 py-1.5"><InputCell value={r.bezeichnung} onChange={v => updateList(setFremdmaterial)(r.id, 'bezeichnung', v)} placeholder="Material..." /></TableCell>
+                            <TableCell className="px-3 py-1.5"><InputCell type="number" step="1" value={r.anzahl} onChange={v => updateList(setFremdmaterial)(r.id, 'anzahl', v)} className="text-right" /></TableCell>
+                            <TableCell className="px-3 py-1.5"><InputCell type="number" step="0.01" value={r.preis} onChange={v => updateList(setFremdmaterial)(r.id, 'preis', v)} className="text-right" /></TableCell>
+                            <TableCell className="px-3 py-1.5"><InputCell type="number" step="1" value={r.handlingPct} onChange={v => updateList(setFremdmaterial)(r.id, 'handlingPct', v)} className="text-right" /></TableCell>
+                            <TableCell className="px-3 py-1.5 text-sm text-right font-medium text-slate-300">{s > 0 ? euro(s) : '-'}</TableCell>
+                            <TableCell className="px-2 py-1.5">
+                              <Button variant="ghost" size="icon" onClick={() => removeFromList(setFremdmaterial)(r.id)}
+                                className="text-slate-600 hover:text-red-400 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity" title="Entfernen">
+                                X
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        )
+                      })}
+                    </TableBody>
+                  </Table>
+                  <Button variant="ghost" size="sm" onClick={() => setFremdmaterial(p => [...p, mkRow(nid(), { anzahl: 0, preis: 0, handlingPct: 10 })])}
+                    className="text-xs text-amber-500 hover:text-amber-400 font-medium px-4 py-1.5">
+                    + Zeile
+                  </Button>
+                </div>
+              </CollapsibleContent>
+            </div>
+          </Collapsible>
 
           {/* 11. Arbeitsstunden */}
-          <div className="glass-card overflow-hidden">
-            <SectionHeader title={`Arbeitsstunden (${calc.sumStunden.toFixed(1)} h)`} summe={calc.sumLohn} open={openSections.lohn} onToggle={() => toggle('lohn')} nr="11" />
-            {openSections.lohn && (
-              <div>
-                <table className="w-full">
-                  <thead>
-                    <tr className="bg-slate-800/40">
-                      <th className={thCls}>Taetigkeit</th>
-                      <th className={`${thCls} w-20 text-right`}>Stunden</th>
-                      <th className={`${thCls} w-40`}>Lohnart</th>
-                      <th className={`${thCls} w-20 text-right`}>EUR/h</th>
-                      <th className={`${thCls} w-28 text-right`}>Summe</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-700/30">
-                    {lohn.map(r => {
-                      const lohnSaetze = { 1: num(variablen.lohn1), 2: num(variablen.lohn2), 3: num(variablen.lohn3) }
-                      const satz = lohnSaetze[r.lohnart] || lohnSaetze[1]
-                      const s = num(r.stunden) * satz
-                      return (
-                        <tr key={r.id} className="hover:bg-slate-800/40">
-                          <td className="px-3 py-1.5"><InputCell value={r.bezeichnung} onChange={v => updateList(setLohn)(r.id, 'bezeichnung', v)} /></td>
-                          <td className="px-3 py-1.5"><InputCell type="number" step="0.5" value={r.stunden} onChange={v => updateList(setLohn)(r.id, 'stunden', v)} className="text-right" /></td>
-                          <td className="px-3 py-1.5">
-                            <select value={r.lohnart} onChange={e => updateList(setLohn)(r.id, 'lohnart', parseInt(e.target.value))}
-                              className="border-0 bg-transparent text-sm text-slate-300 outline-none focus:ring-1 focus:ring-amber-500/50 rounded px-1 py-1">
-                              <option value={1}>1 - Werkstatt ({euro(num(variablen.lohn1))})</option>
-                              <option value={2}>2 - CNC ({euro(num(variablen.lohn2))})</option>
-                              <option value={3}>3 - Montage ({euro(num(variablen.lohn3))})</option>
-                            </select>
-                          </td>
-                          <td className="px-3 py-1.5 text-sm text-right text-slate-500">{euro(satz)}</td>
-                          <td className="px-3 py-1.5 text-sm text-right font-medium text-slate-300">{s > 0 ? euro(s) : '-'}</td>
-                        </tr>
-                      )
-                    })}
-                    <tr className="bg-slate-700/30 font-semibold">
-                      <td className="px-3 py-2 text-sm text-slate-200">Summe</td>
-                      <td className="px-3 py-2 text-sm text-right text-slate-400">{calc.sumStunden.toFixed(1)} h</td>
-                      <td colSpan={2}></td>
-                      <td className="px-3 py-2 text-sm text-right text-amber-400">{euro(calc.sumLohn)}</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
+          <Collapsible open={openSections.lohn} onOpenChange={() => toggle('lohn')}>
+            <div className="glass-card overflow-hidden">
+              <CollapsibleTrigger asChild>
+                <button className="w-full flex items-center justify-between px-4 py-3 bg-slate-800/60 hover:bg-slate-700/60 transition-colors border-b border-slate-700/50">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-slate-400 w-6">{openSections.lohn ? '\u25BC' : '\u25B6'}</span>
+                    <span className="text-xs font-bold text-amber-500/70 uppercase">11</span>
+                    <span className="font-semibold text-slate-200 text-sm">{`Arbeitsstunden (${calc.sumStunden.toFixed(1)} h)`}</span>
+                  </div>
+                  <span className="text-sm font-bold text-amber-400">{euro(calc.sumLohn)}</span>
+                </button>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <div>
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-slate-800/40 border-slate-700/30">
+                        <TableHead className="text-xs text-slate-400 uppercase tracking-wider">Taetigkeit</TableHead>
+                        <TableHead className="text-xs text-slate-400 uppercase tracking-wider w-20 text-right">Stunden</TableHead>
+                        <TableHead className="text-xs text-slate-400 uppercase tracking-wider w-40">Lohnart</TableHead>
+                        <TableHead className="text-xs text-slate-400 uppercase tracking-wider w-20 text-right">EUR/h</TableHead>
+                        <TableHead className="text-xs text-slate-400 uppercase tracking-wider w-28 text-right">Summe</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {lohn.map(r => {
+                        const lohnSaetze = { 1: num(variablen.lohn1), 2: num(variablen.lohn2), 3: num(variablen.lohn3) }
+                        const satz = lohnSaetze[r.lohnart] || lohnSaetze[1]
+                        const s = num(r.stunden) * satz
+                        return (
+                          <TableRow key={r.id} className="hover:bg-slate-800/40 border-slate-700/30">
+                            <TableCell className="px-3 py-1.5"><InputCell value={r.bezeichnung} onChange={v => updateList(setLohn)(r.id, 'bezeichnung', v)} /></TableCell>
+                            <TableCell className="px-3 py-1.5"><InputCell type="number" step="0.5" value={r.stunden} onChange={v => updateList(setLohn)(r.id, 'stunden', v)} className="text-right" /></TableCell>
+                            <TableCell className="px-3 py-1.5">
+                              <select value={r.lohnart} onChange={e => updateList(setLohn)(r.id, 'lohnart', parseInt(e.target.value))}
+                                className="border-0 bg-transparent text-sm text-slate-300 outline-none focus:ring-1 focus:ring-amber-500/50 rounded px-1 py-1">
+                                <option value={1}>1 - Werkstatt ({euro(num(variablen.lohn1))})</option>
+                                <option value={2}>2 - CNC ({euro(num(variablen.lohn2))})</option>
+                                <option value={3}>3 - Montage ({euro(num(variablen.lohn3))})</option>
+                              </select>
+                            </TableCell>
+                            <TableCell className="px-3 py-1.5 text-sm text-right text-slate-500">{euro(satz)}</TableCell>
+                            <TableCell className="px-3 py-1.5 text-sm text-right font-medium text-slate-300">{s > 0 ? euro(s) : '-'}</TableCell>
+                          </TableRow>
+                        )
+                      })}
+                      <TableRow className="bg-slate-700/30 font-semibold border-slate-700/30">
+                        <TableCell className="px-3 py-2 text-sm text-slate-200">Summe</TableCell>
+                        <TableCell className="px-3 py-2 text-sm text-right text-slate-400">{calc.sumStunden.toFixed(1)} h</TableCell>
+                        <TableCell colSpan={2}></TableCell>
+                        <TableCell className="px-3 py-2 text-sm text-right text-amber-400">{euro(calc.sumLohn)}</TableCell>
+                      </TableRow>
+                    </TableBody>
+                  </Table>
+                </div>
+              </CollapsibleContent>
+            </div>
+          </Collapsible>
 
           {/* 12. KFZ */}
-          <div className="glass-card overflow-hidden">
-            <SectionHeader title="KFZ" summe={calc.sumKfz} open={openSections.kfz} onToggle={() => toggle('kfz')} nr="12" />
-            {openSections.kfz && (
-              <div className="p-4 flex items-center gap-4 flex-wrap">
-                <div>
-                  <label className="text-xs text-slate-400">km (einfach)</label>
-                  <input type="number" step="1" value={kfz.kmEinfach || ''} onChange={e => setKfz(p => ({ ...p, kmEinfach: e.target.value }))}
-                    className={`w-24 text-right ${inputCls}`} />
+          <Collapsible open={openSections.kfz} onOpenChange={() => toggle('kfz')}>
+            <div className="glass-card overflow-hidden">
+              <CollapsibleTrigger asChild>
+                <button className="w-full flex items-center justify-between px-4 py-3 bg-slate-800/60 hover:bg-slate-700/60 transition-colors border-b border-slate-700/50">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-slate-400 w-6">{openSections.kfz ? '\u25BC' : '\u25B6'}</span>
+                    <span className="text-xs font-bold text-amber-500/70 uppercase">12</span>
+                    <span className="font-semibold text-slate-200 text-sm">KFZ</span>
+                  </div>
+                  <span className="text-sm font-bold text-amber-400">{euro(calc.sumKfz)}</span>
+                </button>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <div className="p-4 flex items-center gap-4 flex-wrap">
+                  <div className="space-y-1">
+                    <Label className="text-xs text-slate-400">km (einfach)</Label>
+                    <Input type="number" step="1" value={kfz.kmEinfach || ''} onChange={e => setKfz(p => ({ ...p, kmEinfach: e.target.value }))}
+                      className="w-24 text-right bg-slate-800/60 border-slate-600 text-slate-200 focus:ring-amber-500/50 focus:border-amber-500/50" />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs text-slate-400">Anzahl Wege</Label>
+                    <Input type="number" step="1" value={kfz.anzahlWege || ''} onChange={e => setKfz(p => ({ ...p, anzahlWege: e.target.value }))}
+                      className="w-20 text-right bg-slate-800/60 border-slate-600 text-slate-200 focus:ring-amber-500/50 focus:border-amber-500/50" />
+                  </div>
+                  <div>
+                    <Label className="text-xs text-slate-400">EUR/km</Label>
+                    <div className="text-sm font-medium text-slate-300 px-2 py-1.5">{num(variablen.kfzKm).toFixed(2)}</div>
+                  </div>
+                  <div>
+                    <Label className="text-xs text-slate-400">Gesamt km</Label>
+                    <div className="text-sm font-medium text-slate-300 px-2 py-1.5">{(num(kfz.kmEinfach) * num(kfz.anzahlWege)).toFixed(0)}</div>
+                  </div>
+                  <div>
+                    <Label className="text-xs text-slate-400">Summe</Label>
+                    <div className="text-sm font-bold text-amber-400 px-2 py-1.5">{euro(calc.sumKfz)}</div>
+                  </div>
                 </div>
-                <div>
-                  <label className="text-xs text-slate-400">Anzahl Wege</label>
-                  <input type="number" step="1" value={kfz.anzahlWege || ''} onChange={e => setKfz(p => ({ ...p, anzahlWege: e.target.value }))}
-                    className={`w-20 text-right ${inputCls}`} />
-                </div>
-                <div>
-                  <label className="text-xs text-slate-400">EUR/km</label>
-                  <div className="text-sm font-medium text-slate-300 px-2 py-1.5">{num(variablen.kfzKm).toFixed(2)}</div>
-                </div>
-                <div>
-                  <label className="text-xs text-slate-400">Gesamt km</label>
-                  <div className="text-sm font-medium text-slate-300 px-2 py-1.5">{(num(kfz.kmEinfach) * num(kfz.anzahlWege)).toFixed(0)}</div>
-                </div>
-                <div>
-                  <label className="text-xs text-slate-400">Summe</label>
-                  <div className="text-sm font-bold text-amber-400 px-2 py-1.5">{euro(calc.sumKfz)}</div>
-                </div>
-              </div>
-            )}
-          </div>
+              </CollapsibleContent>
+            </div>
+          </Collapsible>
         </div>
 
         {/* Right sidebar: Summary + KI */}
@@ -1245,26 +1421,26 @@ export default function Kalkulator({ updateChatContext, addChatMessages, registe
                 <SummaryLine label={`+ Kleinteile (${zuschlaege.kleinteile}%)`} value={calc.kleinteilZuschlag} indent />
                 <SummaryLine label={`+ Marge Material (${zuschlaege.margeMaterial}%)`} value={calc.margeMaterial} indent />
                 <SummaryLine label="= Verarbeitete Materialien" value={calc.summeVerarbeiteteMat} bold />
-                <div className="border-t border-slate-700/30 my-2" />
+                <Separator className="border-slate-700/30 my-2" />
 
                 <SummaryLine label="Zukaufteile" value={calc.sumZukauf} />
                 <SummaryLine label={`+ Marge Zukauf (${zuschlaege.margeZukauf}%)`} value={calc.margeZukauf} indent />
                 <SummaryLine label="= Halbfabrikate" value={calc.summeHalbfabrikate} bold />
-                <div className="border-t border-slate-700/30 my-2" />
+                <Separator className="border-slate-700/30 my-2" />
 
                 <SummaryLine label="Fremdmaterial (Handlingfee)" value={calc.sumFremd} />
-                <div className="border-t border-slate-700/30 my-2" />
+                <Separator className="border-slate-700/30 my-2" />
 
                 <SummaryLine label="SUMME MATERIAL GESAMT" value={calc.summeMaterialGesamt} bold highlight />
-                <div className="border-t border-slate-600/40 my-2" />
+                <Separator className="border-slate-600/40 my-2" />
 
                 <SummaryLine label={`Lohn (${calc.sumStunden.toFixed(1)} h)`} value={calc.sumLohn} />
                 <SummaryLine label="KFZ" value={calc.sumKfz} />
-                <div className="border-t border-slate-600/40 my-2" />
+                <Separator className="border-slate-600/40 my-2" />
 
                 <SummaryLine label="SELBSTKOSTEN" value={calc.selbstkosten} bold highlight />
                 <SummaryLine label={`WUG (${zuschlaege.wug}%)`} value={calc.wug} indent />
-                <div className="border-t border-slate-600/40 my-2" />
+                <Separator className="border-slate-600/40 my-2" />
 
                 <SummaryLine label="GESAMT (netto)" value={calc.gesamt} bold />
                 {calc.db1 > 0 && (
@@ -1277,7 +1453,7 @@ export default function Kalkulator({ updateChatContext, addChatMessages, registe
                 {num(zuschlaege.rabatt) > 0 && <SummaryLine label={`Rabatt (${zuschlaege.rabatt}%)`} value={calc.rabattBetrag} indent />}
                 {num(zuschlaege.rabatt) > 0 && <SummaryLine label="Gesamt mit Rabatt" value={calc.gesamtMitRabatt} bold />}
                 <SummaryLine label={`MWSt (${zuschlaege.mwst}%)`} value={calc.mwst} indent />
-                <div className="border-t border-slate-600/40 my-3" />
+                <Separator className="border-slate-600/40 my-3" />
 
                 <div className="flex justify-between items-center">
                   <span className="font-bold text-white">BRUTTOPREIS</span>
@@ -1305,37 +1481,44 @@ export default function Kalkulator({ updateChatContext, addChatMessages, registe
 // --- Shared components ---
 
 function SimpleItemTable({ rows, setter, update, remove, nid }) {
-  const thCls = 'px-3 py-2 text-left text-xs text-slate-400 uppercase tracking-wider'
   return (
     <div>
-      <table className="w-full">
-        <thead>
-          <tr className="bg-slate-800/40">
-            <th className={thCls}>Bezeichnung</th>
-            <th className={`${thCls} w-20 text-right`}>Anzahl</th>
-            <th className={`${thCls} w-20`}>Einheit</th>
-            <th className={`${thCls} w-24 text-right`}>EUR/Einh.</th>
-            <th className={`${thCls} w-28 text-right`}>Summe</th>
-            <th className={`${thCls} w-8`}></th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-slate-700/30">
+      <Table>
+        <TableHeader>
+          <TableRow className="bg-slate-800/40 border-slate-700/30">
+            <TableHead className="text-xs text-slate-400 uppercase tracking-wider">Bezeichnung</TableHead>
+            <TableHead className="text-xs text-slate-400 uppercase tracking-wider w-20 text-right">Anzahl</TableHead>
+            <TableHead className="text-xs text-slate-400 uppercase tracking-wider w-20">Einheit</TableHead>
+            <TableHead className="text-xs text-slate-400 uppercase tracking-wider w-24 text-right">EUR/Einh.</TableHead>
+            <TableHead className="text-xs text-slate-400 uppercase tracking-wider w-28 text-right">Summe</TableHead>
+            <TableHead className="w-8"></TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
           {rows.map(r => {
             const s = num(r.anzahl) * num(r.preis)
             return (
-              <tr key={r.id} className="hover:bg-slate-800/40 group">
-                <td className="px-3 py-1.5"><InputCell value={r.bezeichnung} onChange={v => update(r.id, 'bezeichnung', v)} placeholder="Beschreibung..." /></td>
-                <td className="px-3 py-1.5"><InputCell type="number" step="1" value={r.anzahl} onChange={v => update(r.id, 'anzahl', v)} className="text-right" /></td>
-                <td className="px-3 py-1.5"><InputCell value={r.einheit} onChange={v => update(r.id, 'einheit', v)} className="w-16" /></td>
-                <td className="px-3 py-1.5"><InputCell type="number" step="0.01" value={r.preis} onChange={v => update(r.id, 'preis', v)} className="text-right" /></td>
-                <td className="px-3 py-1.5 text-sm text-right font-medium text-slate-300">{s > 0 ? euro(s) : '-'}</td>
-                <td className="px-2 py-1.5"><RemoveBtn onClick={() => remove(r.id)} /></td>
-              </tr>
+              <TableRow key={r.id} className="hover:bg-slate-800/40 group border-slate-700/30">
+                <TableCell className="px-3 py-1.5"><InputCell value={r.bezeichnung} onChange={v => update(r.id, 'bezeichnung', v)} placeholder="Beschreibung..." /></TableCell>
+                <TableCell className="px-3 py-1.5"><InputCell type="number" step="1" value={r.anzahl} onChange={v => update(r.id, 'anzahl', v)} className="text-right" /></TableCell>
+                <TableCell className="px-3 py-1.5"><InputCell value={r.einheit} onChange={v => update(r.id, 'einheit', v)} className="w-16" /></TableCell>
+                <TableCell className="px-3 py-1.5"><InputCell type="number" step="0.01" value={r.preis} onChange={v => update(r.id, 'preis', v)} className="text-right" /></TableCell>
+                <TableCell className="px-3 py-1.5 text-sm text-right font-medium text-slate-300">{s > 0 ? euro(s) : '-'}</TableCell>
+                <TableCell className="px-2 py-1.5">
+                  <Button variant="ghost" size="icon" onClick={() => remove(r.id)}
+                    className="text-slate-600 hover:text-red-400 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity" title="Entfernen">
+                    X
+                  </Button>
+                </TableCell>
+              </TableRow>
             )
           })}
-        </tbody>
-      </table>
-      <AddRowBtn onClick={() => setter(p => [...p, mkRow(nid(), { anzahl: 0, einheit: 'Stk', preis: 0 })])} />
+        </TableBody>
+      </Table>
+      <Button variant="ghost" size="sm" onClick={() => setter(p => [...p, mkRow(nid(), { anzahl: 0, einheit: 'Stk', preis: 0 })])}
+        className="text-xs text-amber-500 hover:text-amber-400 font-medium px-4 py-1.5">
+        + Zeile
+      </Button>
     </div>
   )
 }

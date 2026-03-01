@@ -10,6 +10,12 @@
  * - Dokumenten-Kette (Angebot -> AB -> Rechnung)
  */
 import { useState, useMemo, useRef } from 'react'
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
+import { Badge } from "@/components/ui/badge"
+import { Label } from "@/components/ui/label"
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table"
 
 // --- Helpers ---
 function euro(val) {
@@ -366,38 +372,36 @@ export default function AngebotTab({ calc, allgemein, zuschlaege, kalkDaten }) {
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-3">
             <h2 className="font-bold text-slate-800">{DOK_STATUS[dokStatus].label}</h2>
-            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${DOK_STATUS[dokStatus].badgeCls}`}>
-              {DOK_STATUS[dokStatus].label}
-            </span>
+            <Badge className={DOK_STATUS[dokStatus].badgeCls}>{DOK_STATUS[dokStatus].label}</Badge>
           </div>
           <div className="flex gap-2">
             {dokStatus !== 'rechnung' && (
-              <button onClick={advanceStatus} className="text-xs font-medium px-3 py-1.5 rounded-md bg-green-600 text-white hover:bg-green-700">
+              <Button onClick={advanceStatus} size="sm" className="bg-green-600 text-white hover:bg-green-700">
                 Weiterfuehren &rarr;
-              </button>
+              </Button>
             )}
-            <button onClick={handlePrint} className="text-xs font-medium px-3 py-1.5 rounded-md border border-slate-300 hover:bg-slate-50">
+            <Button onClick={handlePrint} variant="outline" size="sm">
               Vorschau / Drucken
-            </button>
+            </Button>
           </div>
         </div>
 
         <div className="grid grid-cols-4 gap-3">
           <div>
-            <label className="text-xs text-slate-500 block mb-1">Nummer</label>
-            <input value={angebotNr} onChange={e => setAngebotNr(e.target.value)} className={inputCls + ' w-full'} />
+            <Label className="text-xs text-slate-500 mb-1">Nummer</Label>
+            <Input value={angebotNr} onChange={e => setAngebotNr(e.target.value)} className="w-full" />
           </div>
           <div>
-            <label className="text-xs text-slate-500 block mb-1">Kunde</label>
+            <Label className="text-xs text-slate-500 mb-1">Kunde</Label>
             <div className="text-sm font-medium text-slate-700 py-1.5">{allgemein.kunde || '(kein Kunde)'}</div>
           </div>
           <div>
-            <label className="text-xs text-slate-500 block mb-1">Datum</label>
+            <Label className="text-xs text-slate-500 mb-1">Datum</Label>
             <div className="text-sm text-slate-700 py-1.5">{allgemein.datum}</div>
           </div>
           <div>
-            <label className="text-xs text-slate-500 block mb-1">Gueltig bis</label>
-            <input type="date" value={gueltigBis} onChange={e => setGueltigBis(e.target.value)} className={inputCls + ' w-full'} />
+            <Label className="text-xs text-slate-500 mb-1">Gueltig bis</Label>
+            <Input type="date" value={gueltigBis} onChange={e => setGueltigBis(e.target.value)} className="w-full" />
           </div>
         </div>
       </div>
@@ -405,22 +409,22 @@ export default function AngebotTab({ calc, allgemein, zuschlaege, kalkDaten }) {
       {/* Einleitungstext */}
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4">
         <div className="flex items-center justify-between mb-2">
-          <label className="text-xs font-semibold text-slate-500 uppercase">Einleitungstext</label>
+          <Label className="text-xs font-semibold text-slate-500 uppercase">Einleitungstext</Label>
           <select onChange={e => setEinleitung(EINLEITUNGSTEXTE[e.target.value]?.text || '')}
             className="text-xs border border-slate-200 rounded px-2 py-1">
             {EINLEITUNGSTEXTE.map((t, i) => <option key={i} value={i}>{t.label}</option>)}
           </select>
         </div>
-        <textarea value={einleitung} onChange={e => setEinleitung(e.target.value)}
-          rows={2} className={inputCls + ' w-full resize-none'} placeholder="Einleitungstext..." />
+        <Textarea value={einleitung} onChange={e => setEinleitung(e.target.value)}
+          rows={2} className="w-full resize-none" placeholder="Einleitungstext..." />
       </div>
 
       {/* Auto-Generate Button */}
       {positionen.length === 0 && calc.brutto > 0 && (
-        <button onClick={generateFromKalk}
-          className="w-full py-4 border-2 border-dashed border-orange-300 rounded-xl text-orange-600 hover:bg-orange-50 hover:border-orange-400 font-medium transition-colors">
+        <Button onClick={generateFromKalk} variant="outline"
+          className="w-full py-4 border-2 border-dashed border-orange-300 text-orange-600 hover:bg-orange-50 hover:border-orange-400 font-medium h-auto">
           Positionen aus Kalkulation generieren
-        </button>
+        </Button>
       )}
 
       {/* Positionen */}
@@ -429,28 +433,28 @@ export default function AngebotTab({ calc, allgemein, zuschlaege, kalkDaten }) {
           <span className="font-semibold text-sm text-slate-700">Positionen ({angCalc.positionen.filter(p => p.posNr).length})</span>
           <div className="flex gap-1">
             {positionen.length > 0 && (
-              <button onClick={generateFromKalk} className="text-xs text-orange-600 hover:text-orange-700 font-medium px-2 py-1">
+              <Button onClick={generateFromKalk} variant="ghost" size="sm" className="text-xs text-orange-600 hover:text-orange-700 font-medium">
                 Neu generieren
-              </button>
+              </Button>
             )}
           </div>
         </div>
 
         {/* Position-Tabelle */}
-        <table className="w-full">
-          <thead>
-            <tr className="bg-slate-50 border-b border-slate-200">
-              <th className="w-6 px-1"></th>
-              <th className="w-10 px-2 py-2 text-left text-xs text-slate-500">Pos.</th>
-              <th className="px-3 py-2 text-left text-xs text-slate-500">Bezeichnung / Beschreibung</th>
-              <th className="w-16 px-2 py-2 text-right text-xs text-slate-500">Menge</th>
-              <th className="w-16 px-2 py-2 text-xs text-slate-500">Einh.</th>
-              <th className="w-24 px-2 py-2 text-right text-xs text-slate-500">EP (netto)</th>
-              <th className="w-28 px-2 py-2 text-right text-xs text-slate-500">GP (netto)</th>
-              <th className="w-6 px-1"></th>
-            </tr>
-          </thead>
-          <tbody>
+        <Table>
+          <TableHeader>
+            <TableRow className="bg-slate-50 border-b border-slate-200">
+              <TableHead className="w-6 px-1"></TableHead>
+              <TableHead className="w-10 px-2 py-2 text-left text-xs text-slate-500">Pos.</TableHead>
+              <TableHead className="px-3 py-2 text-left text-xs text-slate-500">Bezeichnung / Beschreibung</TableHead>
+              <TableHead className="w-16 px-2 py-2 text-right text-xs text-slate-500">Menge</TableHead>
+              <TableHead className="w-16 px-2 py-2 text-xs text-slate-500">Einh.</TableHead>
+              <TableHead className="w-24 px-2 py-2 text-right text-xs text-slate-500">EP (netto)</TableHead>
+              <TableHead className="w-28 px-2 py-2 text-right text-xs text-slate-500">GP (netto)</TableHead>
+              <TableHead className="w-6 px-1"></TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {angCalc.positionen.map((p, idx) => (
               <PositionRow key={p.id} pos={p} index={idx} total={angCalc.positionen.length}
                 onUpdate={updatePos} onRemove={removePos} onMove={movePos}
@@ -458,26 +462,26 @@ export default function AngebotTab({ calc, allgemein, zuschlaege, kalkDaten }) {
                 addMenuOpen={addMenuOpen} setAddMenuOpen={setAddMenuOpen}
               />
             ))}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
 
         {/* Add Position Menu */}
         <div className="px-4 py-2 border-t border-slate-100 flex gap-2 flex-wrap">
-          <button onClick={() => addPosition('normal')} className="text-xs font-medium text-orange-600 hover:text-orange-700 px-2 py-1 rounded hover:bg-orange-50">
+          <Button onClick={() => addPosition('normal')} variant="ghost" size="sm" className="text-xs font-medium text-orange-600 hover:text-orange-700 hover:bg-orange-50">
             + Position
-          </button>
-          <button onClick={() => addPosition('freitext')} className="text-xs font-medium text-blue-600 hover:text-blue-700 px-2 py-1 rounded hover:bg-blue-50">
+          </Button>
+          <Button onClick={() => addPosition('freitext')} variant="ghost" size="sm" className="text-xs font-medium text-blue-600 hover:text-blue-700 hover:bg-blue-50">
             + Freitext
-          </button>
-          <button onClick={() => addPosition('alternative')} className="text-xs font-medium text-amber-600 hover:text-amber-700 px-2 py-1 rounded hover:bg-amber-50">
+          </Button>
+          <Button onClick={() => addPosition('alternative')} variant="ghost" size="sm" className="text-xs font-medium text-amber-600 hover:text-amber-700 hover:bg-amber-50">
             + Alternative
-          </button>
-          <button onClick={() => addPosition('optional')} className="text-xs font-medium text-purple-600 hover:text-purple-700 px-2 py-1 rounded hover:bg-purple-50">
+          </Button>
+          <Button onClick={() => addPosition('optional')} variant="ghost" size="sm" className="text-xs font-medium text-purple-600 hover:text-purple-700 hover:bg-purple-50">
             + Optional
-          </button>
-          <button onClick={() => addPosition('zwischensumme')} className="text-xs font-medium text-slate-500 hover:text-slate-700 px-2 py-1 rounded hover:bg-slate-50">
+          </Button>
+          <Button onClick={() => addPosition('zwischensumme')} variant="ghost" size="sm" className="text-xs font-medium text-slate-500 hover:text-slate-700 hover:bg-slate-50">
             + Zwischensumme
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -493,9 +497,9 @@ export default function AngebotTab({ calc, allgemein, zuschlaege, kalkDaten }) {
           {/* Gesamtrabatt */}
           <div className="flex items-center gap-2">
             <span className="text-sm text-slate-600 flex-1">Gesamtrabatt</span>
-            <input type="number" step="0.01" value={gesamtRabatt.wert || ''}
+            <Input type="number" step="0.01" value={gesamtRabatt.wert || ''}
               onChange={e => setGesamtRabatt(prev => ({ ...prev, wert: e.target.value }))}
-              className={inputCls + ' w-20 text-right text-sm'} />
+              className="w-20 text-right text-sm" />
             <select value={gesamtRabatt.modus} onChange={e => setGesamtRabatt(prev => ({ ...prev, modus: e.target.value }))}
               className="border border-slate-300 rounded px-2 py-1.5 text-sm">
               <option value="prozent">%</option>
@@ -529,19 +533,19 @@ export default function AngebotTab({ calc, allgemein, zuschlaege, kalkDaten }) {
       {/* Schlusstext */}
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4">
         <div className="flex items-center justify-between mb-2">
-          <label className="text-xs font-semibold text-slate-500 uppercase">Schlusstext / Zahlungsbedingungen</label>
+          <Label className="text-xs font-semibold text-slate-500 uppercase">Schlusstext / Zahlungsbedingungen</Label>
           <select onChange={e => setSchluss(SCHLUSSTEXTE[e.target.value]?.text || '')}
             className="text-xs border border-slate-200 rounded px-2 py-1">
             {SCHLUSSTEXTE.map((t, i) => <option key={i} value={i}>{t.label}</option>)}
           </select>
         </div>
-        <textarea value={schluss} onChange={e => setSchluss(e.target.value)}
-          rows={2} className={inputCls + ' w-full resize-none'} placeholder="Schlussbemerkung..." />
+        <Textarea value={schluss} onChange={e => setSchluss(e.target.value)}
+          rows={2} className="w-full resize-none" placeholder="Schlussbemerkung..." />
       </div>
 
       {/* Dokumenten-Kette Visualisierung */}
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4">
-        <label className="text-xs font-semibold text-slate-500 uppercase block mb-3">Dokumenten-Kette</label>
+        <Label className="text-xs font-semibold text-slate-500 uppercase block mb-3">Dokumenten-Kette</Label>
         <div className="flex items-center gap-1">
           {Object.entries(DOK_STATUS).map(([key, val], i) => {
             const active = key === dokStatus
@@ -574,46 +578,46 @@ function PositionRow({ pos, index, total, onUpdate, onRemove, onMove, onAddAfter
   // Zwischensumme
   if (pos.typ === 'zwischensumme') {
     return (
-      <tr className="bg-slate-100 border-t border-b border-slate-300">
-        <td className="px-1">
+      <TableRow className="bg-slate-100 border-t border-b border-slate-300">
+        <TableCell className="px-1">
           <div className="flex flex-col">
-            {index > 0 && <button onClick={() => onMove(index, -1)} className="text-[10px] text-slate-400 hover:text-slate-600 leading-none">&uarr;</button>}
-            {index < total - 1 && <button onClick={() => onMove(index, 1)} className="text-[10px] text-slate-400 hover:text-slate-600 leading-none">&darr;</button>}
+            {index > 0 && <Button onClick={() => onMove(index, -1)} variant="ghost" size="icon" className="h-4 w-4 text-[10px] text-slate-400 hover:text-slate-600 leading-none p-0">&uarr;</Button>}
+            {index < total - 1 && <Button onClick={() => onMove(index, 1)} variant="ghost" size="icon" className="h-4 w-4 text-[10px] text-slate-400 hover:text-slate-600 leading-none p-0">&darr;</Button>}
           </div>
-        </td>
-        <td className="px-2 py-2"></td>
-        <td className="px-3 py-2 text-sm font-semibold text-slate-700" colSpan={4}>
+        </TableCell>
+        <TableCell className="px-2 py-2"></TableCell>
+        <TableCell className="px-3 py-2 text-sm font-semibold text-slate-700" colSpan={4}>
           <input value={pos.bezeichnung} onChange={e => onUpdate(pos.id, 'bezeichnung', e.target.value)}
             className="bg-transparent border-0 outline-none font-semibold text-sm text-slate-700 w-full" placeholder="Zwischensumme" />
-        </td>
-        <td className="px-2 py-2 text-right text-sm font-bold text-slate-800">{euro(pos._zsSum || 0)}</td>
-        <td className="px-1"><button onClick={() => onRemove(pos.id)} className="text-slate-300 hover:text-red-500 text-xs">X</button></td>
-      </tr>
+        </TableCell>
+        <TableCell className="px-2 py-2 text-right text-sm font-bold text-slate-800">{euro(pos._zsSum || 0)}</TableCell>
+        <TableCell className="px-1"><Button onClick={() => onRemove(pos.id)} variant="ghost" size="icon" className="h-5 w-5 text-slate-300 hover:text-red-500 text-xs p-0">X</Button></TableCell>
+      </TableRow>
     )
   }
 
   // Freitext
   if (pos.typ === 'freitext') {
     return (
-      <tr className="bg-blue-50/30 border-t border-slate-100">
-        <td className="px-1">
+      <TableRow className="bg-blue-50/30 border-t border-slate-100">
+        <TableCell className="px-1">
           <div className="flex flex-col">
-            {index > 0 && <button onClick={() => onMove(index, -1)} className="text-[10px] text-slate-400 hover:text-slate-600 leading-none">&uarr;</button>}
-            {index < total - 1 && <button onClick={() => onMove(index, 1)} className="text-[10px] text-slate-400 hover:text-slate-600 leading-none">&darr;</button>}
+            {index > 0 && <Button onClick={() => onMove(index, -1)} variant="ghost" size="icon" className="h-4 w-4 text-[10px] text-slate-400 hover:text-slate-600 leading-none p-0">&uarr;</Button>}
+            {index < total - 1 && <Button onClick={() => onMove(index, 1)} variant="ghost" size="icon" className="h-4 w-4 text-[10px] text-slate-400 hover:text-slate-600 leading-none p-0">&darr;</Button>}
           </div>
-        </td>
-        <td className="px-2 py-2">
+        </TableCell>
+        <TableCell className="px-2 py-2">
           <span className="text-[9px] px-1.5 py-0.5 rounded bg-blue-100 text-blue-600 font-medium">Text</span>
-        </td>
-        <td className="px-3 py-2" colSpan={4}>
+        </TableCell>
+        <TableCell className="px-3 py-2" colSpan={4}>
           <input value={pos.bezeichnung} onChange={e => onUpdate(pos.id, 'bezeichnung', e.target.value)}
             className="w-full bg-transparent border-0 outline-none text-sm font-semibold text-slate-700 focus:bg-blue-50 rounded px-1" placeholder="Ueberschrift / Freitext..." />
           <input value={pos.beschreibung} onChange={e => onUpdate(pos.id, 'beschreibung', e.target.value)}
             className="w-full bg-transparent border-0 outline-none text-xs text-slate-500 mt-0.5 focus:bg-blue-50 rounded px-1" placeholder="Beschreibung (optional)..." />
-        </td>
-        <td></td>
-        <td className="px-1"><button onClick={() => onRemove(pos.id)} className="text-slate-300 hover:text-red-500 text-xs">X</button></td>
-      </tr>
+        </TableCell>
+        <TableCell></TableCell>
+        <TableCell className="px-1"><Button onClick={() => onRemove(pos.id)} variant="ghost" size="icon" className="h-5 w-5 text-slate-300 hover:text-red-500 text-xs p-0">X</Button></TableCell>
+      </TableRow>
     )
   }
 
@@ -624,54 +628,54 @@ function PositionRow({ pos, index, total, onUpdate, onRemove, onMove, onAddAfter
 
   return (
     <>
-      <tr className={`border-t border-slate-100 hover:bg-slate-50 group ${isExcluded ? 'opacity-70' : ''}`}>
-        <td className="px-1">
+      <TableRow className={`border-t border-slate-100 hover:bg-slate-50 group ${isExcluded ? 'opacity-70' : ''}`}>
+        <TableCell className="px-1">
           <div className="flex flex-col opacity-0 group-hover:opacity-100 transition-opacity">
-            {index > 0 && <button onClick={() => onMove(index, -1)} className="text-[10px] text-slate-400 hover:text-slate-600 leading-none">&uarr;</button>}
-            {index < total - 1 && <button onClick={() => onMove(index, 1)} className="text-[10px] text-slate-400 hover:text-slate-600 leading-none">&darr;</button>}
+            {index > 0 && <Button onClick={() => onMove(index, -1)} variant="ghost" size="icon" className="h-4 w-4 text-[10px] text-slate-400 hover:text-slate-600 leading-none p-0">&uarr;</Button>}
+            {index < total - 1 && <Button onClick={() => onMove(index, 1)} variant="ghost" size="icon" className="h-4 w-4 text-[10px] text-slate-400 hover:text-slate-600 leading-none p-0">&darr;</Button>}
           </div>
-        </td>
-        <td className="px-2 py-2 text-sm text-slate-500 align-top">
+        </TableCell>
+        <TableCell className="px-2 py-2 text-sm text-slate-500 align-top">
           {pos.posNr && <span className="font-medium">{pos.posNr}.</span>}
           {typeInfo.badge && (
             <div className={`text-[9px] px-1.5 py-0.5 rounded mt-0.5 font-medium inline-block ${typeInfo.badgeCls}`}>
               {typeInfo.badge}
             </div>
           )}
-        </td>
-        <td className="px-3 py-2 align-top">
+        </TableCell>
+        <TableCell className="px-3 py-2 align-top">
           <input value={pos.bezeichnung} onChange={e => onUpdate(pos.id, 'bezeichnung', e.target.value)}
             className="w-full bg-transparent border-0 outline-none text-sm text-slate-800 focus:bg-orange-50 rounded px-1 font-medium" placeholder="Bezeichnung..." />
           <input value={pos.beschreibung} onChange={e => onUpdate(pos.id, 'beschreibung', e.target.value)}
             className="w-full bg-transparent border-0 outline-none text-xs text-slate-500 mt-0.5 focus:bg-orange-50 rounded px-1" placeholder="Beschreibung..." />
-        </td>
-        <td className="px-2 py-2 align-top">
+        </TableCell>
+        <TableCell className="px-2 py-2 align-top">
           <input type="number" step="0.1" value={pos.menge || ''} onChange={e => onUpdate(pos.id, 'menge', e.target.value)}
             className="w-full bg-transparent border-0 outline-none text-sm text-right focus:bg-orange-50 rounded px-1" />
-        </td>
-        <td className="px-2 py-2 align-top">
+        </TableCell>
+        <TableCell className="px-2 py-2 align-top">
           <select value={pos.einheit} onChange={e => onUpdate(pos.id, 'einheit', e.target.value)}
             className="bg-transparent border-0 outline-none text-xs text-slate-600 focus:bg-orange-50 rounded">
             {EINHEITEN.map(e => <option key={e} value={e}>{e}</option>)}
           </select>
-        </td>
-        <td className="px-2 py-2 align-top">
+        </TableCell>
+        <TableCell className="px-2 py-2 align-top">
           <input type="number" step="0.01" value={pos.einzelpreis || ''} onChange={e => onUpdate(pos.id, 'einzelpreis', e.target.value)}
             className="w-full bg-transparent border-0 outline-none text-sm text-right focus:bg-orange-50 rounded px-1" />
-        </td>
-        <td className="px-2 py-2 text-right text-sm font-medium align-top">
+        </TableCell>
+        <TableCell className="px-2 py-2 text-right text-sm font-medium align-top">
           <span className={isExcluded ? 'text-slate-400 line-through' : 'text-slate-800'}>
             {lineSum > 0 ? euro(lineSum) : '-'}
           </span>
-        </td>
-        <td className="px-1 align-top pt-2">
-          <button onClick={() => onRemove(pos.id)} className="text-slate-300 hover:text-red-500 text-xs opacity-0 group-hover:opacity-100 transition-opacity">X</button>
-        </td>
-      </tr>
+        </TableCell>
+        <TableCell className="px-1 align-top pt-2">
+          <Button onClick={() => onRemove(pos.id)} variant="ghost" size="icon" className="h-5 w-5 text-slate-300 hover:text-red-500 text-xs opacity-0 group-hover:opacity-100 transition-opacity p-0">X</Button>
+        </TableCell>
+      </TableRow>
       {/* Insert after line (minimal) */}
       {isMenuOpen && (
-        <tr>
-          <td colSpan={8} className="px-4 py-1 bg-orange-50 border-b border-orange-200">
+        <TableRow>
+          <TableCell colSpan={8} className="px-4 py-1 bg-orange-50 border-b border-orange-200">
             <div className="flex gap-2">
               {Object.entries(POS_TYPES).map(([key, val]) => (
                 <button key={key} onClick={() => onAddAfter(key)}
@@ -681,8 +685,8 @@ function PositionRow({ pos, index, total, onUpdate, onRemove, onMove, onAddAfter
               ))}
               <button onClick={() => setAddMenuOpen(null)} className="text-[10px] text-slate-400 ml-auto">Abbrechen</button>
             </div>
-          </td>
-        </tr>
+          </TableCell>
+        </TableRow>
       )}
     </>
   )

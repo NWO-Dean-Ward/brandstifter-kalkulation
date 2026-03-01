@@ -1,5 +1,9 @@
 import { useState, useRef, useEffect } from 'react'
 import { chat as chatApi } from '../api'
+import { ScrollArea } from "@/components/ui/scroll-area"
+import { Input } from "@/components/ui/input"
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
 
 const QUICK_SUGGESTIONS = [
   'Was kosten die importierten Platten?',
@@ -122,119 +126,124 @@ export default function PersistentChat({ open, onToggle, context, onApplyAction,
           <h2 className="font-bold text-purple-400 text-sm">KI-Chat</h2>
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={clearChat} className="text-xs text-slate-500 hover:text-slate-300 transition-colors">
+          <Button variant="ghost" size="sm" onClick={clearChat} className="text-xs text-slate-500 hover:text-slate-300 h-auto px-2 py-1">
             Leeren
-          </button>
-          <button onClick={onToggle} className="text-slate-400 hover:text-white transition-colors text-lg leading-none">
+          </Button>
+          <Button variant="ghost" size="icon" onClick={onToggle} className="text-slate-400 hover:text-white h-auto w-auto px-1">
             &times;
-          </button>
+          </Button>
         </div>
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-3 py-3 space-y-3">
-        {messages.length === 0 && (
-          <div className="space-y-3 mt-4">
-            <p className="text-xs text-slate-500 text-center">Wie kann ich bei der Kalkulation helfen?</p>
-            <div className="space-y-2">
-              {QUICK_SUGGESTIONS.map((suggestion, i) => (
-                <button
-                  key={i}
-                  onClick={() => sendMessage(suggestion)}
-                  className="w-full text-left px-3 py-2 text-xs rounded-lg border border-purple-500/20 bg-purple-500/5 hover:bg-purple-500/15 text-purple-300 transition-colors"
-                >
-                  {suggestion}
-                </button>
-              ))}
+      <ScrollArea className="flex-1 px-3 py-3">
+        <div className="space-y-3">
+          {messages.length === 0 && (
+            <div className="space-y-3 mt-4">
+              <p className="text-xs text-slate-500 text-center">Wie kann ich bei der Kalkulation helfen?</p>
+              <div className="space-y-2">
+                {QUICK_SUGGESTIONS.map((suggestion, i) => (
+                  <Button
+                    key={i}
+                    variant="outline"
+                    onClick={() => sendMessage(suggestion)}
+                    className="w-full text-left justify-start px-3 py-2 text-xs h-auto border-purple-500/20 bg-purple-500/5 hover:bg-purple-500/15 text-purple-300"
+                  >
+                    {suggestion}
+                  </Button>
+                ))}
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {messages.map((msg, idx) => (
-          <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-            <div className={`max-w-[85%] rounded-xl px-3 py-2 text-sm ${
-              msg.role === 'user'
-                ? 'bg-purple-600/30 text-purple-100 border border-purple-500/30'
-                : 'bg-slate-800/80 text-slate-200 border border-slate-700/50'
-            }`}>
-              {/* Message content */}
-              <div className="whitespace-pre-wrap break-words">{msg.content}</div>
+          {messages.map((msg, idx) => (
+            <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+              <div className={`max-w-[85%] rounded-xl px-3 py-2 text-sm ${
+                msg.role === 'user'
+                  ? 'bg-purple-600/30 text-purple-100 border border-purple-500/30'
+                  : 'bg-slate-800/80 text-slate-200 border border-slate-700/50'
+              }`}>
+                {/* Message content */}
+                <div className="whitespace-pre-wrap break-words">{msg.content}</div>
 
-              {/* Actions */}
-              {msg.actions?.length > 0 && (
-                <div className="mt-2 pt-2 border-t border-slate-600/30 space-y-1.5">
-                  {msg.actions.map((action, aIdx) => {
-                    const isApplied = msg.appliedActions?.[aIdx]
-                    return (
-                      <div key={aIdx} className="flex items-center gap-2">
-                        <button
-                          onClick={() => handleApplyAction(idx, aIdx, action)}
-                          disabled={isApplied}
-                          className={`text-xs px-2 py-1 rounded transition-colors ${
-                            isApplied
-                              ? 'bg-green-500/20 text-green-400 border border-green-500/30'
-                              : 'bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/30'
-                          }`}
-                        >
-                          {isApplied ? 'Uebernommen' : 'Uebernehmen'}
-                        </button>
-                        <span className="text-xs text-slate-400 truncate">
-                          {action.type === 'set_price' && `${action.bezeichnung}: ${euro(action.value)}`}
-                          {action.type === 'set_hours' && `${action.bezeichnung}: ${action.value}h`}
-                          {action.type === 'set_zuschlag' && `${action.field}: ${action.value}%`}
-                        </span>
-                      </div>
-                    )
-                  })}
-                </div>
-              )}
+                {/* Actions */}
+                {msg.actions?.length > 0 && (
+                  <div className="mt-2 pt-2 border-t border-slate-600/30 space-y-1.5">
+                    {msg.actions.map((action, aIdx) => {
+                      const isApplied = msg.appliedActions?.[aIdx]
+                      return (
+                        <div key={aIdx} className="flex items-center gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleApplyAction(idx, aIdx, action)}
+                            disabled={isApplied}
+                            className={`text-xs h-auto px-2 py-1 ${
+                              isApplied
+                                ? 'bg-green-500/20 text-green-400 border-green-500/30'
+                                : 'bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border-amber-500/30'
+                            }`}
+                          >
+                            {isApplied ? 'Uebernommen' : 'Uebernehmen'}
+                          </Button>
+                          <span className="text-xs text-slate-400 truncate">
+                            {action.type === 'set_price' && `${action.bezeichnung}: ${euro(action.value)}`}
+                            {action.type === 'set_hours' && `${action.bezeichnung}: ${action.value}h`}
+                            {action.type === 'set_zuschlag' && `${action.field}: ${action.value}%`}
+                          </span>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
 
-              {/* Model badge */}
-              {msg.role === 'assistant' && msg.model_used && msg.model_used !== 'error' && (
-                <div className="mt-1.5 flex items-center gap-2 text-[10px] text-slate-500">
-                  <span className={`px-1.5 py-0.5 rounded ${
-                    msg.model_used.includes('claude') ? 'bg-orange-500/10 text-orange-400' : 'bg-blue-500/10 text-blue-400'
-                  }`}>
-                    {msg.model_used.includes('claude') ? 'Claude' : 'Ollama'}
-                  </span>
-                  {msg.tokens > 0 && <span>{msg.tokens} tokens</span>}
-                </div>
-              )}
+                {/* Model badge */}
+                {msg.role === 'assistant' && msg.model_used && msg.model_used !== 'error' && (
+                  <div className="mt-1.5 flex items-center gap-2 text-[10px] text-slate-500">
+                    <Badge variant="outline" className={`text-[10px] px-1.5 py-0 h-auto ${
+                      msg.model_used.includes('claude') ? 'bg-orange-500/10 text-orange-400 border-orange-500/30' : 'bg-blue-500/10 text-blue-400 border-blue-500/30'
+                    }`}>
+                      {msg.model_used.includes('claude') ? 'Claude' : 'Ollama'}
+                    </Badge>
+                    {msg.tokens > 0 && <span>{msg.tokens} tokens</span>}
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
-        ))}
+          ))}
 
-        {loading && (
-          <div className="flex justify-start">
-            <div className="bg-slate-800/80 border border-slate-700/50 rounded-xl px-3 py-2 text-sm text-slate-400">
-              <span className="animate-pulse">Denke nach...</span>
+          {loading && (
+            <div className="flex justify-start">
+              <div className="bg-slate-800/80 border border-slate-700/50 rounded-xl px-3 py-2 text-sm text-slate-400">
+                <span className="animate-pulse">Denke nach...</span>
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
-        <div ref={messagesEndRef} />
-      </div>
+          <div ref={messagesEndRef} />
+        </div>
+      </ScrollArea>
 
       {/* Input */}
       <div className="px-3 py-3 border-t border-purple-500/20">
         <div className="flex gap-2">
-          <input
+          <Input
             ref={inputRef}
             type="text"
             value={input}
             onChange={e => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="Frage zur Kalkulation..."
-            className="flex-1 bg-slate-800/80 border border-slate-600/50 rounded-lg px-3 py-2 text-sm text-slate-200 outline-none focus:ring-1 focus:ring-purple-500/50 focus:border-purple-500/50 placeholder-slate-500"
+            className="flex-1 bg-slate-800/80 border-slate-600/50 text-slate-200 focus-visible:ring-purple-500/50 focus-visible:border-purple-500/50 placeholder:text-slate-500"
             disabled={loading}
           />
-          <button
+          <Button
             onClick={() => sendMessage(input)}
             disabled={loading || !input.trim()}
-            className="px-3 py-2 rounded-lg text-sm font-medium transition-colors bg-purple-600/80 hover:bg-purple-600 disabled:opacity-30 text-white"
+            className="bg-purple-600/80 hover:bg-purple-600 text-white"
           >
             &rarr;
-          </button>
+          </Button>
         </div>
       </div>
     </div>

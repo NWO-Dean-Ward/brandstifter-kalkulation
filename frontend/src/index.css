@@ -80,24 +80,6 @@ body {
   border-radius: 1rem;
 }
 
-/* Gradient Buttons */
-.btn-primary {
-  background: linear-gradient(135deg, var(--me-primary) 0%, var(--me-primary-light) 100%);
-  color: white;
-  border: none;
-  border-radius: 0.5rem;
-  padding: 0.5rem 1.25rem;
-  font-weight: 600;
-  font-size: 0.875rem;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  box-shadow: 0 2px 8px rgba(180, 83, 9, 0.25);
-}
-.btn-primary:hover {
-  box-shadow: 0 4px 16px rgba(180, 83, 9, 0.4);
-  transform: translateY(-1px);
-}
-
 /* Glow Accent */
 .glow-amber {
   box-shadow: 0 0 20px rgba(245, 158, 11, 0.15);
@@ -119,48 +101,6 @@ body {
   right: 0;
   height: 2px;
   background: linear-gradient(90deg, var(--me-primary), var(--me-accent));
-}
-
-/* Table Styles */
-.me-table {
-  width: 100%;
-}
-.me-table thead tr {
-  border-bottom: 1px solid var(--me-border);
-}
-.me-table th {
-  color: var(--me-text-muted);
-  font-size: 0.75rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  padding: 0.75rem 1.25rem;
-}
-.me-table tbody tr {
-  border-bottom: 1px solid rgba(51, 65, 85, 0.3);
-  transition: background 0.15s ease;
-}
-.me-table tbody tr:hover {
-  background: rgba(51, 65, 85, 0.3);
-}
-
-/* Input Dark Theme */
-.me-input {
-  background: rgba(15, 23, 42, 0.6);
-  border: 1px solid var(--me-border);
-  border-radius: 0.5rem;
-  color: var(--me-text);
-  padding: 0.5rem 0.75rem;
-  font-size: 0.875rem;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
-  outline: none;
-}
-.me-input:focus {
-  border-color: var(--me-primary-light);
-  box-shadow: 0 0 0 2px rgba(217, 119, 6, 0.2);
-}
-.me-input::placeholder {
-  color: #64748b;
 }
 
 /* Selection Color */

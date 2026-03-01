@@ -1,25 +1,13 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { projekte, health } from '../api'
-
-const STATUS_LABELS = {
-  entwurf: { label: 'Entwurf', bg: 'bg-slate-500/20', text: 'text-slate-300', dot: 'bg-slate-400' },
-  kalkuliert: { label: 'Kalkuliert', bg: 'bg-blue-500/20', text: 'text-blue-300', dot: 'bg-blue-400' },
-  angeboten: { label: 'Angeboten', bg: 'bg-amber-500/20', text: 'text-amber-300', dot: 'bg-amber-400' },
-  beauftragt: { label: 'Beauftragt', bg: 'bg-emerald-500/20', text: 'text-emerald-300', dot: 'bg-emerald-400' },
-  abgeschlossen: { label: 'Abgeschlossen', bg: 'bg-green-500/20', text: 'text-green-300', dot: 'bg-green-400' },
-  verloren: { label: 'Verloren', bg: 'bg-red-500/20', text: 'text-red-300', dot: 'bg-red-400' },
-}
-
-function StatusBadge({ status }) {
-  const s = STATUS_LABELS[status] || { label: status, bg: 'bg-gray-500/20', text: 'text-gray-300', dot: 'bg-gray-400' }
-  return (
-    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${s.bg} ${s.text}`}>
-      <span className={`w-1.5 h-1.5 rounded-full ${s.dot}`} />
-      {s.label}
-    </span>
-  )
-}
+import StatusBadge from '@/components/StatusBadge'
+import { STATUS_LABELS } from '@/components/StatusBadge'
+import { Input } from '@/components/ui/input'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table'
+import { Skeleton } from '@/components/ui/skeleton'
 
 function euro(val) {
   return new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(val || 0)
@@ -85,12 +73,14 @@ export default function Dashboard() {
         </div>
         <div className="flex items-center gap-3">
           {serverOk !== null && (
-            <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium ${
-              serverOk ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'
-            }`}>
+            <Badge variant="outline" className={
+              serverOk
+                ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
+                : 'bg-red-500/10 text-red-400 border-red-500/30'
+            }>
               <span className={`w-2 h-2 rounded-full ${serverOk ? 'bg-emerald-500' : 'bg-red-500'}`} />
               {serverOk ? 'Online' : 'Offline'}
-            </div>
+            </Badge>
           )}
         </div>
       </div>
@@ -109,17 +99,17 @@ export default function Dashboard() {
           { key: 'alle', label: 'Alle' },
           ...Object.entries(STATUS_LABELS).map(([key, { label }]) => ({ key, label })),
         ].map(f => (
-          <button key={f.key} onClick={() => setFilter(f.key)}
-            className={`px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 ${
-              filter === f.key
-                ? 'bg-amber-600/90 text-white shadow-lg shadow-amber-900/20'
-                : 'bg-slate-800/60 text-slate-400 hover:bg-slate-700/60 hover:text-slate-300'
-            }`}>
+          <Button
+            key={f.key}
+            onClick={() => setFilter(f.key)}
+            variant={filter === f.key ? 'default' : 'secondary'}
+            size="sm"
+          >
             {f.label}
             {f.key !== 'alle' && (
               <span className="ml-1.5 opacity-60">({liste.filter(p => p.status === f.key).length})</span>
             )}
-          </button>
+          </Button>
         ))}
       </div>
 
@@ -128,25 +118,29 @@ export default function Dashboard() {
         <div className="px-6 py-4 border-b border-slate-700/50 flex items-center justify-between gap-4">
           <h2 className="font-semibold text-slate-200">Projekte</h2>
           <div className="flex-1 max-w-xs">
-            <input
+            <Input
               value={suche}
               onChange={e => setSuche(e.target.value)}
               placeholder="Suche (Name, Kunde, ID)..."
-              className="me-input w-full"
             />
           </div>
-          <button
-            onClick={() => navigate('/ausschreibung')}
-            className="btn-primary"
-          >
+          <Button onClick={() => navigate('/ausschreibung')}>
             + Neues Projekt
-          </button>
+          </Button>
         </div>
 
         {loading ? (
-          <div className="p-12 text-center text-slate-500">
-            <div className="inline-block w-6 h-6 border-2 border-slate-600 border-t-amber-500 rounded-full animate-spin mb-3" />
-            <div>Lade Projekte...</div>
+          <div className="p-6 space-y-4">
+            {[1, 2, 3].map(i => (
+              <div key={i} className="flex items-center gap-4">
+                <Skeleton className="h-10 flex-1" />
+                <Skeleton className="h-10 w-24" />
+                <Skeleton className="h-10 w-20" />
+                <Skeleton className="h-10 w-28" />
+                <Skeleton className="h-10 w-24" />
+                <Skeleton className="h-10 w-16" />
+              </div>
+            ))}
           </div>
         ) : error ? (
           <div className="p-12 text-center text-red-400">{error}</div>
@@ -155,31 +149,31 @@ export default function Dashboard() {
             {liste.length === 0 ? 'Noch keine Projekte vorhanden.' : 'Keine Projekte mit diesem Filter.'}
           </div>
         ) : (
-          <table className="me-table">
-            <thead>
-              <tr className="text-left">
-                <th className="px-6 py-3">Projekt</th>
-                <th className="px-6 py-3">Kunde</th>
-                <th className="px-6 py-3">Typ</th>
-                <th className="px-6 py-3">Status</th>
-                <th className="px-6 py-3 text-right">Angebotspreis</th>
-                <th className="px-6 py-3 text-right">Marge</th>
-                <th className="px-6 py-3"></th>
-              </tr>
-            </thead>
-            <tbody>
+          <Table>
+            <TableHeader>
+              <TableRow className="text-left">
+                <TableHead className="px-6 py-3">Projekt</TableHead>
+                <TableHead className="px-6 py-3">Kunde</TableHead>
+                <TableHead className="px-6 py-3">Typ</TableHead>
+                <TableHead className="px-6 py-3">Status</TableHead>
+                <TableHead className="px-6 py-3 text-right">Angebotspreis</TableHead>
+                <TableHead className="px-6 py-3 text-right">Marge</TableHead>
+                <TableHead className="px-6 py-3"></TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {filtered.map(p => (
-                <tr
+                <TableRow
                   key={p.id}
                   onClick={() => navigate(`/projekt/${p.id}`)}
                   className="cursor-pointer group"
                 >
-                  <td className="px-6 py-3.5">
+                  <TableCell className="px-6 py-3.5">
                     <div className="font-medium text-slate-200 group-hover:text-amber-400 transition-colors">{p.name}</div>
                     <div className="text-xs text-slate-500 mt-0.5">{p.id}</div>
-                  </td>
-                  <td className="px-6 py-3.5 text-slate-400">{p.kunde || '-'}</td>
-                  <td className="px-6 py-3.5 text-sm">
+                  </TableCell>
+                  <TableCell className="px-6 py-3.5 text-slate-400">{p.kunde || '-'}</TableCell>
+                  <TableCell className="px-6 py-3.5 text-sm">
                     {p.projekt_typ === 'oeffentlich' ? (
                       <span className="px-2 py-0.5 rounded text-xs font-medium bg-blue-500/15 text-blue-400">VOB</span>
                     ) : p.projekt_typ === 'privat' ? (
@@ -187,34 +181,38 @@ export default function Dashboard() {
                     ) : (
                       <span className="text-xs text-slate-500">Std.</span>
                     )}
-                  </td>
-                  <td className="px-6 py-3.5"><StatusBadge status={p.status} /></td>
-                  <td className="px-6 py-3.5 text-right font-medium text-slate-200">
+                  </TableCell>
+                  <TableCell className="px-6 py-3.5"><StatusBadge status={p.status} /></TableCell>
+                  <TableCell className="px-6 py-3.5 text-right font-medium text-slate-200">
                     {p.angebotspreis ? euro(p.angebotspreis) : '-'}
-                  </td>
-                  <td className="px-6 py-3.5 text-right text-sm text-slate-400">
+                  </TableCell>
+                  <TableCell className="px-6 py-3.5 text-right text-sm text-slate-400">
                     {p.marge_prozent ? `${p.marge_prozent.toFixed(1)}%` : '-'}
-                  </td>
-                  <td className="px-6 py-3.5 text-right whitespace-nowrap">
-                    <button
+                  </TableCell>
+                  <TableCell className="px-6 py-3.5 text-right whitespace-nowrap">
+                    <Button
+                      variant="ghost"
+                      size="sm"
                       onClick={(e) => handleCopy(e, p.id)}
-                      className="text-slate-500 hover:text-amber-400 transition-colors text-sm mr-3 opacity-0 group-hover:opacity-100"
+                      className="text-slate-500 hover:text-amber-400 transition-colors text-sm mr-1 opacity-0 group-hover:opacity-100"
                       title="Kopieren"
                     >
                       Kop.
-                    </button>
-                    <button
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
                       onClick={(e) => handleDelete(e, p.id)}
                       className="text-slate-500 hover:text-red-400 transition-colors text-sm opacity-0 group-hover:opacity-100"
                       title="Loeschen"
                     >
                       X
-                    </button>
-                  </td>
-                </tr>
+                    </Button>
+                  </TableCell>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         )}
       </div>
     </div>

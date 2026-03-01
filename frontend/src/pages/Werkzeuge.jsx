@@ -1,48 +1,75 @@
 import { useState, useEffect } from 'react'
 import { lernen, cnc, sb, analyse, einkauf } from '../api'
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
+import { Card, CardContent } from "@/components/ui/card"
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table"
+import { Input } from "@/components/ui/input"
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import { Label } from "@/components/ui/label"
 
 function euro(val) {
   return new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(val || 0)
 }
 
 export default function Werkzeuge() {
-  const [activeTab, setActiveTab] = useState('lernen')
-
-  const tabs = [
-    { key: 'lernen', label: 'Lernhistorie' },
-    { key: 'cnc', label: 'CNC' },
-    { key: 'analyse', label: 'Altprojekte' },
-    { key: 'einkauf', label: 'Preisrecherche' },
-    { key: 'sb', label: "Schreiner's Buero" },
-  ]
-
   return (
     <div className="max-w-5xl mx-auto">
       <h1 className="text-2xl font-bold text-white mb-6">Werkzeuge</h1>
 
-      <div className="border-b border-slate-700/50 mb-4">
-        <div className="flex gap-0">
-          {tabs.map(tab => (
-            <button
-              key={tab.key}
-              onClick={() => setActiveTab(tab.key)}
-              className={`px-5 py-3 text-sm font-medium border-b-2 transition-colors ${
-                activeTab === tab.key
-                  ? 'border-amber-500 text-amber-400'
-                  : 'border-transparent text-slate-400 hover:text-slate-200 hover:border-slate-600'
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
-      </div>
+      <Tabs defaultValue="lernen">
+        <TabsList
+          variant="line"
+          className="border-b border-slate-700/50 bg-transparent rounded-none h-auto p-0 w-full"
+        >
+          <TabsTrigger
+            value="lernen"
+            className="rounded-none border-b-2 border-transparent data-[state=active]:border-amber-500 data-[state=active]:text-amber-400 data-[state=active]:shadow-none text-slate-400 hover:text-slate-200 px-5 py-3"
+          >
+            Lernhistorie
+          </TabsTrigger>
+          <TabsTrigger
+            value="cnc"
+            className="rounded-none border-b-2 border-transparent data-[state=active]:border-amber-500 data-[state=active]:text-amber-400 data-[state=active]:shadow-none text-slate-400 hover:text-slate-200 px-5 py-3"
+          >
+            CNC
+          </TabsTrigger>
+          <TabsTrigger
+            value="analyse"
+            className="rounded-none border-b-2 border-transparent data-[state=active]:border-amber-500 data-[state=active]:text-amber-400 data-[state=active]:shadow-none text-slate-400 hover:text-slate-200 px-5 py-3"
+          >
+            Altprojekte
+          </TabsTrigger>
+          <TabsTrigger
+            value="einkauf"
+            className="rounded-none border-b-2 border-transparent data-[state=active]:border-amber-500 data-[state=active]:text-amber-400 data-[state=active]:shadow-none text-slate-400 hover:text-slate-200 px-5 py-3"
+          >
+            Preisrecherche
+          </TabsTrigger>
+          <TabsTrigger
+            value="sb"
+            className="rounded-none border-b-2 border-transparent data-[state=active]:border-amber-500 data-[state=active]:text-amber-400 data-[state=active]:shadow-none text-slate-400 hover:text-slate-200 px-5 py-3"
+          >
+            Schreiner's Buero
+          </TabsTrigger>
+        </TabsList>
 
-      {activeTab === 'lernen' && <LernenTab />}
-      {activeTab === 'cnc' && <CNCTab />}
-      {activeTab === 'analyse' && <AnalyseTab />}
-      {activeTab === 'einkauf' && <EinkaufTab />}
-      {activeTab === 'sb' && <SBTab />}
+        <TabsContent value="lernen" className="mt-4">
+          <LernenTab />
+        </TabsContent>
+        <TabsContent value="cnc" className="mt-4">
+          <CNCTab />
+        </TabsContent>
+        <TabsContent value="analyse" className="mt-4">
+          <AnalyseTab />
+        </TabsContent>
+        <TabsContent value="einkauf" className="mt-4">
+          <EinkaufTab />
+        </TabsContent>
+        <TabsContent value="sb" className="mt-4">
+          <SBTab />
+        </TabsContent>
+      </Tabs>
     </div>
   )
 }
@@ -106,29 +133,29 @@ function LernenTab() {
         <h2 className="font-semibold text-slate-200 mb-4">Preisvorschlag (aus Historiedaten)</h2>
         <div className="grid grid-cols-3 gap-3 mb-3">
           <div>
-            <label className="text-xs text-slate-400">Kurztext</label>
-            <input type="text" value={vorschlagInput.kurztext}
+            <Label className="text-xs text-slate-400">Kurztext</Label>
+            <Input type="text" value={vorschlagInput.kurztext}
               onChange={e => setVorschlagInput({...vorschlagInput, kurztext: e.target.value})}
               placeholder="z.B. Einbauschrank, Kuechenfront..."
-              className="w-full border border-slate-600 bg-slate-800/60 text-slate-200 rounded px-3 py-1.5 text-sm" />
+              className="border-slate-600 bg-slate-800/60 text-slate-200" />
           </div>
           <div>
-            <label className="text-xs text-slate-400">Material</label>
-            <input type="text" value={vorschlagInput.material}
+            <Label className="text-xs text-slate-400">Material</Label>
+            <Input type="text" value={vorschlagInput.material}
               onChange={e => setVorschlagInput({...vorschlagInput, material: e.target.value})}
               placeholder="z.B. Spanplatte, MDF..."
-              className="w-full border border-slate-600 bg-slate-800/60 text-slate-200 rounded px-3 py-1.5 text-sm" />
+              className="border-slate-600 bg-slate-800/60 text-slate-200" />
           </div>
           <div>
-            <label className="text-xs text-slate-400">Menge</label>
+            <Label className="text-xs text-slate-400">Menge</Label>
             <div className="flex gap-2">
-              <input type="number" min="1" value={vorschlagInput.menge}
+              <Input type="number" min="1" value={vorschlagInput.menge}
                 onChange={e => setVorschlagInput({...vorschlagInput, menge: parseFloat(e.target.value) || 1})}
-                className="w-full border border-slate-600 bg-slate-800/60 text-slate-200 rounded px-3 py-1.5 text-sm" />
-              <button onClick={handleVorschlag}
-                className="bg-amber-600 hover:bg-amber-700 text-white px-4 py-1.5 rounded text-sm font-medium whitespace-nowrap">
+                className="border-slate-600 bg-slate-800/60 text-slate-200" />
+              <Button onClick={handleVorschlag}
+                className="bg-amber-600 hover:bg-amber-700 text-white whitespace-nowrap">
                 Vorschlag
-              </button>
+              </Button>
             </div>
           </div>
         </div>
@@ -154,30 +181,30 @@ function LernenTab() {
       {abweichungen?.abweichungen?.length > 0 && (
         <div className="glass-card p-6">
           <h2 className="font-semibold text-slate-200 mb-4">Top-Abweichungen (Kalkulation vs. Ist)</h2>
-          <table className="w-full">
-            <thead>
-              <tr className="text-left text-xs text-slate-400 uppercase">
-                <th className="py-2">Positionstyp</th>
-                <th className="py-2 text-right">Kalkuliert</th>
-                <th className="py-2 text-right">Tatsaechlich</th>
-                <th className="py-2 text-right">Abweichung</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-700/30">
+          <Table>
+            <TableHeader>
+              <TableRow className="border-slate-700/50">
+                <TableHead className="text-xs text-slate-400 uppercase">Positionstyp</TableHead>
+                <TableHead className="text-xs text-slate-400 uppercase text-right">Kalkuliert</TableHead>
+                <TableHead className="text-xs text-slate-400 uppercase text-right">Tatsaechlich</TableHead>
+                <TableHead className="text-xs text-slate-400 uppercase text-right">Abweichung</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {abweichungen.abweichungen.map((a, i) => (
-                <tr key={i}>
-                  <td className="py-2 text-sm text-slate-200">{a.position_typ}</td>
-                  <td className="py-2 text-sm text-right">{euro(a.kalkulierter_preis)}</td>
-                  <td className="py-2 text-sm text-right">{euro(a.tatsaechlicher_preis)}</td>
-                  <td className={`py-2 text-sm text-right font-medium ${
+                <TableRow key={i} className="border-slate-700/30">
+                  <TableCell className="text-sm text-slate-200">{a.position_typ}</TableCell>
+                  <TableCell className="text-sm text-right">{euro(a.kalkulierter_preis)}</TableCell>
+                  <TableCell className="text-sm text-right">{euro(a.tatsaechlicher_preis)}</TableCell>
+                  <TableCell className={`text-sm text-right font-medium ${
                     Math.abs(a.abweichung_prozent) > 15 ? 'text-red-400' : 'text-slate-300'
                   }`}>
                     {a.abweichung_prozent > 0 ? '+' : ''}{a.abweichung_prozent.toFixed(1)}%
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
       )}
     </div>
@@ -209,14 +236,14 @@ function CNCTab() {
         <h2 className="font-semibold text-slate-200 mb-4">CNC-Datei analysieren</h2>
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="text-xs text-slate-400 block mb-1">HOP-Datei (NCHops)</label>
-            <input type="file" accept=".hop" onChange={e => handleFileUpload(e, 'hop')}
-              className="w-full text-sm border border-slate-600 bg-slate-800/60 text-slate-200 rounded px-3 py-1.5" />
+            <Label className="text-xs text-slate-400 block mb-1">HOP-Datei (NCHops)</Label>
+            <Input type="file" accept=".hop" onChange={e => handleFileUpload(e, 'hop')}
+              className="border-slate-600 bg-slate-800/60 text-slate-200" />
           </div>
           <div>
-            <label className="text-xs text-slate-400 block mb-1">MPR-Datei</label>
-            <input type="file" accept=".mpr" onChange={e => handleFileUpload(e, 'mpr')}
-              className="w-full text-sm border border-slate-600 bg-slate-800/60 text-slate-200 rounded px-3 py-1.5" />
+            <Label className="text-xs text-slate-400 block mb-1">MPR-Datei</Label>
+            <Input type="file" accept=".mpr" onChange={e => handleFileUpload(e, 'mpr')}
+              className="border-slate-600 bg-slate-800/60 text-slate-200" />
           </div>
         </div>
         {parsing && <div className="mt-3 text-sm text-slate-400">Analysiere...</div>}
@@ -230,26 +257,26 @@ function CNCTab() {
           {parseResult.bauteile && (
             <div className="mb-3">
               <div className="text-sm font-medium text-slate-300 mb-2">Bauteile: {parseResult.bauteile.length}</div>
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="text-left text-xs text-slate-400 uppercase">
-                    <th className="py-1">Bezeichnung</th>
-                    <th className="py-1 text-right">L x B (mm)</th>
-                    <th className="py-1">Material</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-700/30">
+              <Table>
+                <TableHeader>
+                  <TableRow className="border-slate-700/50">
+                    <TableHead className="text-xs text-slate-400 uppercase">Bezeichnung</TableHead>
+                    <TableHead className="text-xs text-slate-400 uppercase text-right">L x B (mm)</TableHead>
+                    <TableHead className="text-xs text-slate-400 uppercase">Material</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
                   {(parseResult.bauteile || []).slice(0, 20).map((b, i) => (
-                    <tr key={i}>
-                      <td className="py-1 text-slate-200">{b.bezeichnung || b.name || '-'}</td>
-                      <td className="py-1 text-right font-mono text-slate-300">
+                    <TableRow key={i} className="border-slate-700/30">
+                      <TableCell className="text-slate-200">{b.bezeichnung || b.name || '-'}</TableCell>
+                      <TableCell className="text-right font-mono text-slate-300">
                         {b.laenge_mm || b.laenge || '-'} x {b.breite_mm || b.breite || '-'}
-                      </td>
-                      <td className="py-1 text-slate-300">{b.material || '-'}</td>
-                    </tr>
+                      </TableCell>
+                      <TableCell className="text-slate-300">{b.material || '-'}</TableCell>
+                    </TableRow>
                   ))}
-                </tbody>
-              </table>
+                </TableBody>
+              </Table>
             </div>
           )}
           {parseResult.bearbeitungen && (
@@ -301,13 +328,13 @@ function AnalyseTab() {
       <div className="glass-card p-6">
         <h2 className="font-semibold text-slate-200 mb-4">Altprojekt analysieren</h2>
         <div className="flex gap-3">
-          <input type="text" value={pfad} onChange={e => setPfad(e.target.value)}
+          <Input type="text" value={pfad} onChange={e => setPfad(e.target.value)}
             placeholder="D:\Ausschreibung-kalulation-Beispiel\Grundschule Worfelden"
-            className="flex-1 border border-slate-600 bg-slate-800/60 text-slate-200 rounded px-3 py-2 text-sm" />
-          <button onClick={handleScan} disabled={loading || !pfad.trim()}
-            className="bg-amber-600 hover:bg-amber-700 disabled:bg-slate-700 disabled:text-slate-500 text-white px-5 py-2 rounded-lg text-sm font-medium">
+            className="flex-1 border-slate-600 bg-slate-800/60 text-slate-200" />
+          <Button onClick={handleScan} disabled={loading || !pfad.trim()}
+            className="bg-amber-600 hover:bg-amber-700 disabled:bg-slate-700 disabled:text-slate-500 text-white">
             {loading ? 'Analysiere...' : 'Komplett-Analyse'}
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -322,9 +349,9 @@ function AnalyseTab() {
               </div>
               <div className="flex gap-2 mt-1 flex-wrap">
                 {Object.entries(result.scan.typen || {}).map(([typ, count]) => (
-                  <span key={typ} className="text-xs bg-slate-700 text-slate-400 rounded px-2 py-0.5">
+                  <Badge key={typ} variant="secondary" className="bg-slate-700 text-slate-400">
                     {typ}: {count}
-                  </span>
+                  </Badge>
                 ))}
               </div>
             </div>
@@ -364,26 +391,26 @@ function AnalyseTab() {
       {historie.length > 0 && (
         <div className="glass-card p-6">
           <h2 className="font-semibold text-slate-200 mb-4">Analyse-Historie ({historie.length})</h2>
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="text-left text-xs text-slate-400 uppercase">
-                <th className="py-2">Projekt</th>
-                <th className="py-2">Pfad</th>
-                <th className="py-2">Datum</th>
-                <th className="py-2 text-right">Inflation</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-700/30">
+          <Table>
+            <TableHeader>
+              <TableRow className="border-slate-700/50">
+                <TableHead className="text-xs text-slate-400 uppercase">Projekt</TableHead>
+                <TableHead className="text-xs text-slate-400 uppercase">Pfad</TableHead>
+                <TableHead className="text-xs text-slate-400 uppercase">Datum</TableHead>
+                <TableHead className="text-xs text-slate-400 uppercase text-right">Inflation</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {historie.map(h => (
-                <tr key={h.id}>
-                  <td className="py-2 text-slate-200">{h.projekt_name}</td>
-                  <td className="py-2 text-slate-400 text-xs font-mono truncate max-w-[200px]">{h.quell_pfad}</td>
-                  <td className="py-2 text-slate-400">{h.analyse_datum?.substring(0, 10)}</td>
-                  <td className="py-2 text-right text-slate-300">{((h.inflationsfaktor - 1) * 100).toFixed(1)}%</td>
-                </tr>
+                <TableRow key={h.id} className="border-slate-700/30">
+                  <TableCell className="text-slate-200">{h.projekt_name}</TableCell>
+                  <TableCell className="text-slate-400 text-xs font-mono truncate max-w-[200px]">{h.quell_pfad}</TableCell>
+                  <TableCell className="text-slate-400">{h.analyse_datum?.substring(0, 10)}</TableCell>
+                  <TableCell className="text-right text-slate-300">{((h.inflationsfaktor - 1) * 100).toFixed(1)}%</TableCell>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
       )}
     </div>
@@ -415,22 +442,22 @@ function EinkaufTab() {
       <div className="glass-card p-6">
         <h2 className="font-semibold text-slate-200 mb-4">Preisrecherche</h2>
         <div className="flex gap-3">
-          <input type="text" value={suchbegriff} onChange={e => setSuchbegriff(e.target.value)}
+          <Input type="text" value={suchbegriff} onChange={e => setSuchbegriff(e.target.value)}
             placeholder="Blum Topfband 71B3550, Haefele Griff..."
             onKeyDown={e => e.key === 'Enter' && handleSuche()}
-            className="flex-1 border border-slate-600 bg-slate-800/60 text-slate-200 rounded px-3 py-2 text-sm" />
+            className="flex-1 border-slate-600 bg-slate-800/60 text-slate-200" />
           <select value={quellen} onChange={e => setQuellen(e.target.value)}
-            className="border border-slate-600 bg-slate-800/60 text-slate-200 rounded px-3 py-2 text-sm">
+            className="border border-slate-600 bg-slate-800/60 text-slate-200 rounded-md px-3 py-2 text-sm h-9 outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500/50">
             <option value="google_shopping,amazon">Google + Amazon</option>
             <option value="haefele">Haefele</option>
             <option value="amazon">Amazon</option>
             <option value="google_shopping">Google Shopping</option>
             <option value="google_shopping,amazon,haefele">Alle</option>
           </select>
-          <button onClick={handleSuche} disabled={loading || !suchbegriff.trim()}
-            className="bg-amber-600 hover:bg-amber-700 disabled:bg-slate-700 disabled:text-slate-500 text-white px-5 py-2 rounded-lg text-sm font-medium">
+          <Button onClick={handleSuche} disabled={loading || !suchbegriff.trim()}
+            className="bg-amber-600 hover:bg-amber-700 disabled:bg-slate-700 disabled:text-slate-500 text-white">
             {loading ? 'Suche...' : 'Suchen'}
-          </button>
+          </Button>
         </div>
         <div className="mt-2 text-xs text-slate-400">
           Hinweis: Erfordert Playwright (pip install playwright && playwright install chromium)
@@ -443,34 +470,36 @@ function EinkaufTab() {
             Ergebnisse: {result.anzahl_treffer || 0} Treffer
           </h2>
           {result.treffer?.length > 0 ? (
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-left text-xs text-slate-400 uppercase">
-                  <th className="py-2">Produkt</th>
-                  <th className="py-2">Quelle</th>
-                  <th className="py-2 text-right">Preis</th>
-                  <th className="py-2"></th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-700/30">
+            <Table>
+              <TableHeader>
+                <TableRow className="border-slate-700/50">
+                  <TableHead className="text-xs text-slate-400 uppercase">Produkt</TableHead>
+                  <TableHead className="text-xs text-slate-400 uppercase">Quelle</TableHead>
+                  <TableHead className="text-xs text-slate-400 uppercase text-right">Preis</TableHead>
+                  <TableHead className="text-xs text-slate-400 uppercase"></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {result.treffer.map((t, i) => (
-                  <tr key={i} className={i === 0 ? 'bg-green-500/10' : ''}>
-                    <td className="py-2 text-slate-200">{t.titel?.substring(0, 80)}</td>
-                    <td className="py-2">
-                      <span className="text-xs bg-slate-700 text-slate-400 rounded px-2 py-0.5">{t.quelle}</span>
-                    </td>
-                    <td className="py-2 text-right font-medium text-green-400">{euro(t.preis)}</td>
-                    <td className="py-2 text-right">
+                  <TableRow key={i} className={`border-slate-700/30 ${i === 0 ? 'bg-green-500/10' : ''}`}>
+                    <TableCell className="text-slate-200">{t.titel?.substring(0, 80)}</TableCell>
+                    <TableCell>
+                      <Badge variant="secondary" className="bg-slate-700 text-slate-400">
+                        {t.quelle}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right font-medium text-green-400">{euro(t.preis)}</TableCell>
+                    <TableCell className="text-right">
                       {t.link && (
                         <a href={t.link} target="_blank" rel="noopener" className="text-xs text-blue-400 hover:underline">
                           Link
                         </a>
                       )}
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           ) : (
             <div className="text-sm text-slate-400">Keine Treffer gefunden.</div>
           )}
@@ -501,17 +530,23 @@ function SBTab() {
 
   if (loading) return <div className="text-center py-8 text-slate-400">Pruefe Verbindung...</div>
 
+  const isOnline = status?.status === 'ok' || status?.status === 'online'
+
   return (
     <div className="space-y-6">
       <div className="glass-card p-6">
         <h2 className="font-semibold text-slate-200 mb-4">Schreiner's Buero Status</h2>
         <div className="flex items-center gap-3">
-          <span className={`w-3 h-3 rounded-full ${
-            status?.status === 'ok' || status?.status === 'online' ? 'bg-green-500' : 'bg-red-500'
-          }`} />
+          <Badge variant="outline" className={
+            isOnline
+              ? 'border-green-500 text-green-400'
+              : 'border-red-500 text-red-400'
+          }>
+            {isOnline ? 'Online' : 'Offline'}
+          </Badge>
           <span className="text-sm text-slate-200">
-            {status?.status === 'ok' || status?.status === 'online'
-              ? 'Verbunden mit Schreiner\'s Buero'
+            {isOnline
+              ? "Verbunden mit Schreiner's Buero"
               : 'Offline (CSV-Fallback aktiv)'}
           </span>
         </div>
@@ -540,9 +575,11 @@ function SBTab() {
 
 function MiniStat({ label, value }) {
   return (
-    <div className="bg-slate-800/40 rounded-lg p-3">
-      <div className="text-xs text-slate-400">{label}</div>
-      <div className="text-lg font-bold text-white">{value}</div>
-    </div>
+    <Card className="bg-slate-800/40 border-slate-700/50 py-0 gap-0">
+      <CardContent className="p-3">
+        <div className="text-xs text-slate-400">{label}</div>
+        <div className="text-lg font-bold text-white">{value}</div>
+      </CardContent>
+    </Card>
   )
 }
