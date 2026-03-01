@@ -17,7 +17,7 @@ from api.database import init_db_sync
 init_db_sync()
 app_config = AppConfig(config_dir=Path(__file__).parent.parent / "config")
 config_routes.set_config(app_config)
-pipeline = _init_pipeline(app_config)
+pipeline, llm_router = _init_pipeline(app_config)
 kalkulation.set_pipeline(pipeline)
 export_routes.set_pipeline(pipeline)
 lernen.set_pipeline(pipeline)

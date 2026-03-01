@@ -22,7 +22,7 @@ def setup():
 
     # Pipeline initialisieren
     from api.main import _init_pipeline
-    pipeline = _init_pipeline(app_config)
+    pipeline, llm_router = _init_pipeline(app_config)
     kalkulation.set_pipeline(pipeline)
 
 
