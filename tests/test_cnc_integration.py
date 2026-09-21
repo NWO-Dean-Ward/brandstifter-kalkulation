@@ -307,7 +307,7 @@ def test_06_cnc_agent_direkt():
         payload={"datei_pfad": str(FIXTURES / "test_bauteil.hop")},
         projekt_id="TEST",
     )
-    result = asyncio.get_event_loop().run_until_complete(agent.execute(msg))
+    result = asyncio.run(agent.execute(msg))
 
     assert result.msg_type == "response"
     assert "error" not in result.payload
@@ -327,7 +327,7 @@ def test_06_cnc_agent_direkt():
         payload={"datei_pfad": str(FIXTURES / "test_bauteil.mpr")},
         projekt_id="TEST",
     )
-    result2 = asyncio.get_event_loop().run_until_complete(agent.execute(msg2))
+    result2 = asyncio.run(agent.execute(msg2))
     assert result2.msg_type == "response"
     assert "error" not in result2.payload
     print(f"  MPR direkt: {result2.payload['bearbeitungen']['operationen_gesamt']} Operationen")
@@ -345,7 +345,7 @@ def test_07_maschinen_kalkulator_nchops():
     mk = MaschinenKalkulator()
     hop_path = str(FIXTURES / "test_bauteil.hop")
 
-    result = asyncio.get_event_loop().run_until_complete(mk.parse_nchops(hop_path))
+    result = asyncio.run(mk.parse_nchops(hop_path))
 
     assert "error" not in result
     print(f"  Werkstueck: {result['werkstueck']['laenge_mm']}x{result['werkstueck']['breite_mm']}mm")

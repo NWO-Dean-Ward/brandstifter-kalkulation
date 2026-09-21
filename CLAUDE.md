@@ -16,7 +16,7 @@ Ausschreibungs- & Kalkulationssoftware für AMP & Brandstifter GmbH (Schreinerei
 - Sprache: Deutsch (UI komplett)
 
 ## Architektur
-Agenten-basiert: LeadAgent orchestriert 12 Subagenten. Kommunikation über AgentMessage-Protokoll.
+Agenten-basiert: LeadAgent orchestriert 13 Subagenten. Kommunikation über AgentMessage-Protokoll.
 
 ### Subagenten
 1. DokumentParser – GAEB/PDF/Excel Parsing
@@ -31,6 +31,7 @@ Agenten-basiert: LeadAgent orchestriert 12 Subagenten. Kommunikation über Agent
 10. AnalyseAgent – Altprojekt-Analyse (Excel/GAEB/Smartwop-CSV, Egger-Dekore, Inflation)
 11. EinkaufsAgent – Playwright-Preisrecherche (Haefele/Blum/Egger/Amazon/Google Shopping)
 12. HolzTuscheAgent – B2B-Preissync bei Holz-Tusche (Playwright-Login, Shopware)
+13. AusschreibungsAgent – Monitoring oeffentlicher Ausschreibungen (HAD Hessen + TED EU)
 
 ## Wichtige Regeln
 - Lackierung = immer Fremdleistung mit konfigurierbarem Aufschlag
@@ -41,11 +42,13 @@ Agenten-basiert: LeadAgent orchestriert 12 Subagenten. Kommunikation über Agent
 - Config in YAML-Dateien (config/)
 - Partner-Logins: Fernet-verschluesselt in config/partner-logins.yaml, Key in config/.secret_key
 - EinkaufsAgent kauft NIEMALS automatisch ein – nur Recherche
+- AusschreibungsAgent bewirbt sich NIEMALS automatisch – nur Recherche und Vorlage
+- Ausschreibungs-Scan ueberschreibt einen gesetzten Status nie (Entscheidung schlaegt Scan)
 - Manuelle Ueberschreibungen: Pflicht-Begruendung, Audit-Trail
 - Smartwop-CSV Material-Codes = Egger-Dekornummern (W1000=Premium Weiss, H1345=Eiche Sherman natur)
 
 ## DB-Tabellen
-projekte, positionen, materialpreise, maschineneinsaetze, lernhistorie, konfiguration_log, werkstuecke, zukaufteile, manuelle_ueberschreibungen, altprojekt_analysen
+projekte, positionen, materialpreise, maschineneinsaetze, lernhistorie, konfiguration_log, werkstuecke, zukaufteile, manuelle_ueberschreibungen, altprojekt_analysen, ausschreibungen
 
 ## API-Routes
 - /api/projekte/ – CRUD Projekte
@@ -62,12 +65,13 @@ projekte, positionen, materialpreise, maschineneinsaetze, lernhistorie, konfigur
 - /api/schreiners-buero/ – ERP CSV/API
 - /api/analyse/ – Altprojekt-Scan/Excel/GAEB/Smartwop/Komplett/Inflation/Historie
 - /api/einkauf/ – Preisrecherche (Einzel/Batch/Haefele/Amazon/Google/Speichern/Holz-Tusche/Sync)
+- /api/ausschreibungen/ – Scan (HAD/TED), Liste, Status-PATCH, Briefing
 
 ## Verzeichnisstruktur
-- agents/ – 11 Business-Agenten (Python)
+- agents/ – 13 Business-Agenten (Python)
 - api/ – FastAPI Backend (routes/, models/)
 - frontend/ – React App (pages: Dashboard, Ausschreibung, Projekt, Einstellungen, Werkzeuge)
-- config/ – YAML-Konfiguration + .secret_key + partner-logins.yaml
+- config/ – YAML-Konfiguration + .secret_key + partner-logins.yaml + ausschreibungen.yaml
 - data/ – Preislisten, Projekte, SQLite DB, SB-Austausch (sb_import/, sb_export/)
 - exports/ – Generierte Dateien (exports/cnc/ fuer HOP/Stuecklisten)
 - tests/ – 74 Tests (test_erweiterung.py = 24 Tests fuer Erweiterung)
@@ -95,6 +99,20 @@ projekte, positionen, materialpreise, maschineneinsaetze, lernhistorie, konfigur
 - FK-Enforcement: PRAGMA foreign_keys = ON in get_db() und init_db_sync()
 - Playwright: `pip install playwright && playwright install chromium` (einmalig)
 - Egger-Dekore: 100+ Dekore in agents/analyse_agent.py EGGER_DEKORE dict
+- HAD-Suche: POST auf /onlinesuche_erweitert.html mit TYPE=013, L_CAT=SQL0, CMD=SE, CNT=500,
+  PLZ_VON/PLZ_BIS, DDAYS. Session-Cookie per GET vorher holen, sonst kommt nur das Formular zurueck.
+  Ein PLZ-Bereich pro Abfrage - mehrere Regionen = mehrere Requests.
+- HAD-HTML: cp1252 (nicht ISO-8859-1, wegen Gedankenstrich \x96), verschachtelte Tabellen.
+  Zeilen an class searchlistgreyrow/searchlistwhiterow, Kennung aus CLI_ID/REC_ID.
+  Zellentext ueber .//text() joinen - text_content() klebt <br>-Zeilen zusammen.
+  PLZ klebt am Firmennamen ("GmbH60329"), daher Lookaround statt \\b im Regex.
+- TED-API: POST https://api.ted.europa.eu/v3/notices/search, anonym. KEIN Sortier-Parameter -
+  ohne "publication-date >= JJJJMMTT" kommen die aeltesten Treffer (2016er) zuerst.
+  Felder kommen als Sprach-Dict oder Liste, Ortsangaben je Los mehrfach.
+- Ausschreibungs-Relevanz: Schlagwortprofil in config/ausschreibungen.yaml, Titel-Treffer
+  zaehlen doppelt. Ausschlussbegriff ohne Kernleistung = Score 0 (Fremdgewerk).
+- Tests nutzen pytest-asyncio: in Alttests kein asyncio.get_event_loop().run_until_complete()
+  mehr verwenden (Loop ist dann geschlossen), sondern asyncio.run().
 
 ## Frontend UI-Regeln
 
@@ -139,3 +157,4 @@ Bei Frontend-Aufgaben folgende Rolle einnehmen:
 5. SmartWOP/NCHops CNC-Integration ✓ (HOP/MPR Parse, HOP-Export, Stueckliste, Nesting, Zeitberechnung)
 6. Schreiner's Buero ERP-Anbindung ✓ (Auftraege, Stuecklisten, Kunden, Materialpreise, CSV Import/Export)
 7. Erweiterung ✓ (Werkstuecke, Zukaufteile, Ueberschreibungen, AnalyseAgent, EinkaufsAgent, Egger-Mapping, Fernet, Tab-Frontend)
+8. Ausschreibungs-Monitoring ✓ (HAD Hessen + TED EU, Relevanz-Scoring, Briefing)

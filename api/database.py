@@ -8,6 +8,7 @@ Tabellen:
 - maschineneinsaetze: Maschinenbelegung pro Position
 - lernhistorie: Abgeschlossene Projekte für den Lern-Agent
 - konfiguration: Laufzeit-Konfigurationsänderungen
+- ausschreibungen: Bewertete Bekanntmachungen aus HAD/TED
 """
 
 from __future__ import annotations
@@ -200,6 +201,33 @@ CREATE TABLE IF NOT EXISTS altprojekt_analysen (
     notizen         TEXT DEFAULT '',
     status          TEXT DEFAULT 'analysiert' -- analysiert | importiert | verworfen
 );
+
+-- Ausschreibungs-Monitoring (HAD / TED)
+CREATE TABLE IF NOT EXISTS ausschreibungen (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    quelle          TEXT NOT NULL,            -- had | ted
+    externe_id      TEXT NOT NULL,            -- HAD: CLI_ID/REC_ID, TED: publication-number
+    titel           TEXT NOT NULL,
+    verfahren       TEXT DEFAULT '',
+    beschreibung    TEXT DEFAULT '',
+    vergabestelle   TEXT DEFAULT '',
+    ort             TEXT DEFAULT '',
+    plz             TEXT DEFAULT '',
+    veroeffentlicht TEXT DEFAULT '',          -- ISO-Datum
+    ablauftermin    TEXT DEFAULT '',          -- ISO-Datum
+    cpv             TEXT DEFAULT '',
+    link            TEXT DEFAULT '',
+    score           INTEGER DEFAULT 0,        -- Relevanz nach Leistungsprofil
+    score_begruendung TEXT DEFAULT '',        -- nachvollziehbare Schlagwort-Treffer
+    llm_bewertung   TEXT DEFAULT '',          -- Zweitmeinung im Klartext
+    status          TEXT DEFAULT 'neu',       -- neu | relevant | verworfen | beworben | gewonnen | verloren
+    gescannt_am     TEXT NOT NULL,
+    notizen         TEXT DEFAULT '',
+    UNIQUE(quelle, externe_id)
+);
+CREATE INDEX IF NOT EXISTS idx_ausschreibungen_score ON ausschreibungen(score DESC);
+CREATE INDEX IF NOT EXISTS idx_ausschreibungen_status ON ausschreibungen(status);
+CREATE INDEX IF NOT EXISTS idx_ausschreibungen_ablauf ON ausschreibungen(ablauftermin);
 """
 
 

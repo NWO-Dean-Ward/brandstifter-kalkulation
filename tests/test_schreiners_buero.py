@@ -337,7 +337,7 @@ def test_07_agent_direkt():
         },
         projekt_id="TEST-DIREKT",
     )
-    result = asyncio.get_event_loop().run_until_complete(agent.execute(msg))
+    result = asyncio.run(agent.execute(msg))
     assert result.payload["status"] == "ok"
     print(f"  CSV-Export direkt: {result.payload['datei']}")
 
@@ -348,7 +348,7 @@ def test_07_agent_direkt():
         payload={},
         projekt_id="TEST",
     )
-    result2 = asyncio.get_event_loop().run_until_complete(agent.execute(msg2))
+    result2 = asyncio.run(agent.execute(msg2))
     assert result2.payload["status"] == "nicht_konfiguriert"
     print(f"  Verbindungstest (keine URL): {result2.payload['status']}")
 

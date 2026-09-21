@@ -1,0 +1,156 @@
+# Leistungsprofil fuer das Ausschreibungs-Monitoring
+#
+# Steuert, welche oeffentlichen Bekanntmachungen als relevant fuer
+# AMP & Brandstifter eingestuft werden. Die Gewichte sind bewusst
+# konservativ: lieber ein Treffer zu viel als ein verpasster Auftrag.
+#
+# Quellen:
+#   HAD  - Hessische Ausschreibungsdatenbank (www.had.de).
+#          Nach HVTG muessen ALLE hessischen Bekanntmachungen dort stehen,
+#          national und EU-weit. Fuer Hessen also die Vollmenge.
+#   TED  - Tenders Electronic Daily (api.ted.europa.eu), EU-weit oberhalb
+#          der Schwellenwerte. Ergaenzt HAD um Projekte ausserhalb Hessens.
+
+quellen:
+  had:
+    aktiv: true
+    basis_url: "https://www.had.de/onlinesuche_erweitert.html"
+    zeitraum_tage: 14          # Bekanntmachungen der letzten N Tage
+    max_treffer: 500           # Obergrenze der HAD-Suchmaske
+    # HAD erlaubt pro Abfrage genau einen PLZ-Bereich -> mehrere Scans
+    plz_bereiche:
+      - { von: "60000", bis: "65999", name: "Rhein-Main / Wetterau / Taunus" }
+      - { von: "35000", bis: "36999", name: "Mittelhessen / Fulda" }
+  ted:
+    aktiv: true
+    basis_url: "https://api.ted.europa.eu/v3/notices/search"
+    max_treffer: 100
+    # Pflichtangabe: die TED-API sortiert nicht, ohne Datumsfenster kommen
+    # die aeltesten Bekanntmachungen zuerst.
+    zeitraum_tage: 30
+    nuts_codes: ["DE7"]        # DE7 = Hessen
+    cpv_codes:
+      - "39100000"   # Moebel
+      - "39121000"   # Schreibtische und Tische
+      - "39122000"   # Schraenke und Buecherregale
+      - "39130000"   # Bueromoebel
+      - "39131000"   # Regale
+      - "39141000"   # Kuechenmoebel und -ausstattung
+      - "39150000"   # Diverse Moebel und Einrichtungen
+      - "39151000"   # Diverse Moebel
+      - "39155000"   # Bibliothekseinrichtung
+      - "39160000"   # Schulmoebel
+      - "39290000"   # Verschiedene Einrichtungsgegenstaende
+      - "44220000"   # Bautischlerei
+      - "45421000"   # Bautischlerarbeiten
+      - "45421150"   # Bautischlerarbeiten (nicht aus Metall)
+      - "45421151"   # Einbau von Einbaukuechen
+      - "45421152"   # Einbau von Trennwaenden
+      - "45421153"   # Einbau von Einbaumoebeln
+      - "45422000"   # Zimmerei- und Tischlerarbeiten
+
+# Schlagwort-Bewertung. Treffer im Titel zaehlen doppelt.
+schlagworte:
+  stark:        # Kerngeschaeft - jeder Treffer ist ein Kandidat
+    - tischler
+    - schreiner
+    - einbaumoebel
+    - einbaumöbel
+    - einbauschrank
+    - innenausbau
+    - ladenbau
+    - objektmoebel
+    - objektmöbel
+    - moeblierung
+    - möblierung
+    - empfangstheke
+    - bautischler
+  mittel:       # relevant in Kombination
+    - moebel
+    - möbel
+    - mobiliar
+    - einrichtung
+    - kueche
+    - küche
+    - kuechenzeile
+    - küchenzeile
+    - theke
+    - garderobe
+    - bestuhlung
+    - wandverkleidung
+    - trennwand
+    - sitzmoebel
+    - sitzmöbel
+    - ausstattung
+    - holzbau
+    - zimmerei
+  schwach:      # nur als Verstaerker, nie allein ausreichend
+    - ausbau
+    - sanierung
+    - umbau
+    - modernisierung
+    - ausbaugewerke
+    - raumkonzept
+
+# Ausschluss-Begriffe. Treffer ziehen Punkte ab; ab einem Volltreffer
+# in dieser Liste ohne starkes Schlagwort wird gar nicht erst bewertet.
+ausschluss:
+  - softwareentwicklung
+  - it-dienstleist
+  - rechenzentrum
+  - netzwerk
+  - ddos
+  - lizenz
+  - strassenbau
+  - straßenbau
+  - tiefbau
+  - kanalbau
+  - bruecken
+  - brücken
+  - winterdienst
+  - gruenpflege
+  - grünpflege
+  - reinigungsdienst
+  - gebaeudereinigung
+  - gebäudereinigung
+  - entsorgung
+  - abfall
+  - versicherung
+  - personalvermittlung
+  - catering
+  - fahrzeug
+  - fuhrpark
+  - gutachten
+  - schalltechnisch
+  - verkehrsplanung
+  - bauleitplan
+  - heizungsanlage
+  - lueftungsanlage
+  - lüftungsanlage
+  - sanitaerinstallation
+  - sanitärinstallation
+  - elektroinstallation
+  - dachdecker
+  - geruestbau
+  - gerüstbau
+  - estrich
+  - malerarbeiten
+  - photovoltaik
+  - aufzug
+
+gewichte:
+  stark: 10
+  mittel: 5
+  schwach: 2
+  titel_faktor: 2             # Treffer im Titel zaehlen doppelt
+  ausschluss_abzug: 8
+
+schwellen:
+  briefing_min_score: 12      # ab hier landet es im Briefing an Dean
+  llm_pruefung_min_score: 6   # ab hier lohnt die LLM-Zweitmeinung
+  llm_max_kandidaten: 25      # Kostenbremse pro Scan
+
+# Harte Filter
+filter:
+  nur_laufende: true          # Ablauftermin muss in der Zukunft liegen
+  min_resttage: 7             # unter 7 Tagen Restfrist ist ein Angebot unrealistisch
