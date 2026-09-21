@@ -14,6 +14,7 @@ from agents.export_agent import ExportAgent
 from agents.lern_agent import LernAgent
 from agents.analyse_agent import AnalyseAgent
 from agents.einkaufs_agent import EinkaufsAgent
+from agents.ausschreibungs_agent import AusschreibungsAgent
 
 __all__ = [
     "BaseAgent",
@@ -29,4 +30,5 @@ __all__ = [
     "LernAgent",
     "AnalyseAgent",
     "EinkaufsAgent",
+    "AusschreibungsAgent",
 ]

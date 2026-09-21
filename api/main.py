@@ -23,7 +23,7 @@ from api.routes import (
     projekte, kalkulation, config as config_routes, positionen,
     materialpreise, export, lernen, cnc, schreiners_buero,
     werkstuecke, zukaufteile, ueberschreibungen, analyse, einkauf,
-    bild_analyse, chat,
+    bild_analyse, chat, ausschreibungen,
 )
 from agents.lead_agent import LeadAgent
 from agents.dokument_parser import DokumentParser
@@ -39,6 +39,7 @@ from agents.analyse_agent import AnalyseAgent
 from agents.einkaufs_agent import EinkaufsAgent
 from agents.bild_analyse_agent import BildAnalyseAgent
 from agents.holz_tusche_agent import HolzTuscheAgent
+from agents.ausschreibungs_agent import AusschreibungsAgent
 
 
 def _init_pipeline(app_config: AppConfig) -> tuple[LeadAgent, "LLMRouter"]:
@@ -99,6 +100,10 @@ def _init_pipeline(app_config: AppConfig) -> tuple[LeadAgent, "LLMRouter"]:
 
     bild_agent = BildAnalyseAgent(llm_router=llm_router)
 
+    # Ausschreibungs-Monitoring (HAD Hessen + TED EU)
+    ausschreibungs_agent = AusschreibungsAgent(llm_router=llm_router)
+    ausschreibungs_agent.configure(db_pfad="data/kalkulation.db")
+
     # Holz-Tusche Agent (B2B-Plattenpreise)
     holz_tusche_agent = HolzTuscheAgent()
     logins = app_config.get_partner_logins()
@@ -108,7 +113,7 @@ def _init_pipeline(app_config: AppConfig) -> tuple[LeadAgent, "LLMRouter"]:
     )
 
     # Beim Lead-Agent registrieren
-    for agent in [parser, material, maschinen, lohn, zuschlag, export, lern, cnc_agent, sb_agent, analyse, einkauf_agent, bild_agent, holz_tusche_agent]:
+    for agent in [parser, material, maschinen, lohn, zuschlag, export, lern, cnc_agent, sb_agent, analyse, einkauf_agent, bild_agent, holz_tusche_agent, ausschreibungs_agent]:
         lead.register_subagent(agent)
 
     return lead, llm_router
@@ -137,6 +142,7 @@ async def lifespan(app: FastAPI):
     analyse.set_pipeline(pipeline)
     einkauf.set_pipeline(pipeline)
     bild_analyse.set_pipeline(pipeline)
+    ausschreibungen.set_pipeline(pipeline)
     config_routes.set_config(app_config)
 
     yield
@@ -190,6 +196,7 @@ app.include_router(analyse.router)
 app.include_router(einkauf.router)
 app.include_router(bild_analyse.router)
 app.include_router(chat.router)
+app.include_router(ausschreibungen.router)
 
 
 @app.get("/api/health")
