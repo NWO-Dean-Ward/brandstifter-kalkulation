@@ -10,9 +10,11 @@ from __future__ import annotations
 from typing import Any
 
 from typing import List
-from fastapi import APIRouter, HTTPException, UploadFile, File
+from fastapi import APIRouter, HTTPException, UploadFile, File, Form
 
 from api.database import get_db
+
+MAX_UPLOAD_SIZE = 50 * 1024 * 1024  # 50 MB
 
 router = APIRouter(prefix="/api/analyse", tags=["Analyse"])
 
@@ -127,6 +129,55 @@ async def smartwop_csv_upload(dateien: List[UploadFile] = File(...)):
         pass
 
     return result.payload
+
+
+@router.post("/opencutlist-upload")
+async def opencutlist_csv_upload(
+    dateien: List[UploadFile] = File(...),
+    qualitaet: str = Form("standard"),
+):
+    """Nimmt OpenCutList-CSV-Exporte (SketchUp) entgegen und wertet sie mit der
+    Rechenlogik des Korpus-Generators aus (Platten, Kanten, Beschlaege, CNC-Stunden)."""
+    from pathlib import Path
+    from agents.korpus_generator import KonfigurationsFehler, werte_stueckliste_aus
+    from agents.opencutlist_import import parse_opencutlist_csv
+    from api.routes.korpus import lade_kalkulationsbasis
+
+    teile, beschlaege, kanten, massivholz, hinweise, dateiinfos = [], [], [], [], [], []
+    for datei in dateien:
+        name = datei.filename or "opencutlist.csv"
+        content = await datei.read()
+        if len(content) > MAX_UPLOAD_SIZE:
+            raise HTTPException(status_code=413, detail=f"{name}: Datei zu gross (max. 50 MB)")
+        try:
+            ergebnis = parse_opencutlist_csv(content, name)
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=f"{name}: {exc}")
+        teile.extend(ergebnis.teile)
+        beschlaege.extend(ergebnis.beschlaege)
+        kanten.extend(ergebnis.kanten)
+        massivholz.extend(ergebnis.massivholz)
+        hinweise.extend(f"{name}: {h}" for h in ergebnis.hinweise)
+        dateiinfos.append({
+            "datei": name,
+            "zeilen": ergebnis.zeilen,
+            "teile": len(ergebnis.teile),
+            "beschlaege": len(ergebnis.beschlaege),
+        })
+
+    regeln, maschinen, katalog = lade_kalkulationsbasis()
+    try:
+        auswertung = werte_stueckliste_aus(
+            teile, beschlaege,
+            regeln=regeln, maschinen_cfg=maschinen, katalog=katalog,
+            qualitaet=qualitaet, extra_kanten=kanten, massivholz=massivholz,
+            gegenstand=", ".join(Path(d["datei"]).stem for d in dateiinfos),
+        )
+    except KonfigurationsFehler as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
+    auswertung["dateien"] = dateiinfos
+    auswertung["hinweise"] = hinweise
+    return auswertung
 
 
 @router.post("/komplett")

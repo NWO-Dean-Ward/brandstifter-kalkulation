@@ -1,6 +1,7 @@
 import { useState, useMemo, useRef, useEffect, useCallback } from 'react'
 import { analyse, bildAnalyse, einkauf, chat as chatApi } from '../api'
 import AngebotTab from '../components/AngebotTab'
+import KorpusDialog from '../components/KorpusDialog'
 import { buildChatContext, buildAutoVorschlagRequest } from '../chatContext'
 
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -82,9 +83,11 @@ export default function Kalkulator({ updateChatContext, addChatMessages, registe
     lohn: true, kfz: false,
   })
 
-  // SmartWOP Import
+  // SmartWOP / OpenCutList Import, Korpus-Generator
   const [importStatus, setImportStatus] = useState(null)
   const fileInputRef = useRef(null)
+  const oclInputRef = useRef(null)
+  const [korpusOffen, setKorpusOffen] = useState(false)
 
   // 3D/Bild Analyse
   const [bildInputRef] = useState(() => ({ current: null }))
@@ -98,8 +101,9 @@ export default function Kalkulator({ updateChatContext, addChatMessages, registe
   // Zukaufteile KI-Suche
   const [zkSearch, setZkSearch] = useState({}) // { [rowId]: { loading, treffer, error } }
 
-  const [nextId, setNextId] = useState(100)
-  const nid = () => { const n = nextId; setNextId(p => p + 1); return n }
+  // Zaehler als Ref: mehrere nid()-Aufrufe in einem Handler (Importe) brauchen eindeutige IDs
+  const nextIdRef = useRef(100)
+  const nid = () => nextIdRef.current++
 
   const toggle = (key) => setOpenSections(prev => ({ ...prev, [key]: !prev[key] }))
 
@@ -406,6 +410,61 @@ export default function Kalkulator({ updateChatContext, addChatMessages, registe
     if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
+  // --- Gemeinsamer Import (Korpus-Generator, OpenCutList): Mengen aus der Server-Auswertung ---
+  const applyKalkulatorImport = (imp) => {
+    if (!imp) return
+    const ohneLeere = (rows, feld) => rows.filter(r => r.bezeichnung || num(r[feld]) > 0)
+    if (imp.platten?.length) setPlatten(prev => [...ohneLeere(prev, 'menge'), ...imp.platten.map(p => mkRow(nid(), p))])
+    if (imp.massivholz?.length) setMassivholz(prev => [...ohneLeere(prev, 'menge'), ...imp.massivholz.map(m => mkRow(nid(), m))])
+    if (imp.kanten?.length) setKanten(prev => [...ohneLeere(prev, 'laenge'), ...imp.kanten.map(k => mkRow(nid(), k))])
+    if (imp.beschlaege?.length) setBeschlaege(prev => [...ohneLeere(prev, 'anzahl'), ...imp.beschlaege.map(b => mkRow(nid(), b))])
+    const lohnImport = imp.lohn || {}
+    if (Object.keys(lohnImport).length) {
+      setLohn(prev => prev.map(r => lohnImport[r.bezeichnung]
+        ? { ...r, stunden: Math.round((num(r.stunden) + lohnImport[r.bezeichnung]) * 100) / 100 }
+        : r))
+    }
+    if (imp.gegenstand) setAllgemein(prev => prev.gegenstand ? prev : { ...prev, gegenstand: imp.gegenstand })
+    setOpenSections(prev => ({
+      ...prev,
+      platten: prev.platten || !!imp.platten?.length,
+      massivholz: prev.massivholz || !!imp.massivholz?.length,
+      kanten: prev.kanten || !!imp.kanten?.length,
+      beschlaege: prev.beschlaege || !!imp.beschlaege?.length,
+      lohn: prev.lohn || Object.keys(lohnImport).length > 0,
+    }))
+  }
+
+  const importZusammenfassung = (r) => {
+    const k = r.kennzahlen || {}
+    return `${k.teile_anzahl} Teile, ${k.flaeche_netto_m2} m2 Platten, ${k.kanten_lfm} lfm Kanten, ` +
+      `${k.beschlaege_stueck} Beschlaege, ${k.stunden_gesamt} h`
+  }
+
+  const handleKorpusUebernehmen = (r) => {
+    applyKalkulatorImport(r.kalkulator_import)
+    setImportStatus({ type: 'success', msg: `Korpus uebernommen (${r.gegenstand}): ${importZusammenfassung(r)}` })
+  }
+
+  // --- OpenCutList CSV Import (SketchUp) ---
+  const handleOpenCutListImport = async (e) => {
+    const files = e.target.files
+    if (!files || files.length === 0) return
+    setImportStatus({ type: 'loading', msg: `${files.length} OpenCutList CSV${files.length > 1 ? 's' : ''} werden ausgewertet...` })
+    try {
+      const result = await analyse.opencutlistUpload(files)
+      applyKalkulatorImport(result.kalkulator_import)
+      const hinweise = [...(result.hinweise || []), ...(result.warnungen || [])]
+      const zusatz = hinweise.length
+        ? ` | Hinweise: ${hinweise.slice(0, 3).join(' | ')}${hinweise.length > 3 ? ` (+${hinweise.length - 3} weitere)` : ''}`
+        : ''
+      setImportStatus({ type: 'success', msg: `OpenCutList importiert: ${importZusammenfassung(result)}${zusatz}` })
+    } catch (err) {
+      setImportStatus({ type: 'error', msg: `OpenCutList-Import fehlgeschlagen: ${err.message}` })
+    }
+    if (oclInputRef.current) oclInputRef.current.value = ''
+  }
+
   // --- 3D/Bild Analyse ---
   const handleBildUpload = async (e) => {
     const file = e.target.files?.[0]
@@ -630,6 +689,33 @@ export default function Kalkulator({ updateChatContext, addChatMessages, registe
           >
             SmartWOP Import
           </Button>
+          {/* OpenCutList Import (SketchUp) */}
+          <input
+            ref={oclInputRef}
+            type="file"
+            accept=".csv"
+            multiple
+            onChange={handleOpenCutListImport}
+            className="hidden"
+          />
+          <Button
+            variant="outline"
+            onClick={() => oclInputRef.current?.click()}
+            className="border-blue-500/30 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400"
+            title="OpenCutList-Zuschnittliste aus SketchUp importieren (CSV)"
+          >
+            OpenCutList Import
+          </Button>
+          {/* Korpus-Generator */}
+          <Button
+            variant="outline"
+            onClick={() => setKorpusOffen(true)}
+            className="border-amber-500/40 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400"
+            title="Korpus aus Massen und Ausstattung berechnen"
+          >
+            Korpus-Generator
+          </Button>
+          <KorpusDialog open={korpusOffen} onOpenChange={setKorpusOffen} onUebernehmen={handleKorpusUebernehmen} />
           {/* 3D/Bild Analyse */}
           <input
             ref={bildRef}

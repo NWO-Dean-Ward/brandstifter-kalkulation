@@ -23,7 +23,7 @@ from api.routes import (
     projekte, kalkulation, config as config_routes, positionen,
     materialpreise, export, lernen, cnc, schreiners_buero,
     werkstuecke, zukaufteile, ueberschreibungen, analyse, einkauf,
-    bild_analyse, chat,
+    bild_analyse, chat, korpus,
 )
 from agents.lead_agent import LeadAgent
 from agents.dokument_parser import DokumentParser
@@ -190,6 +190,7 @@ app.include_router(analyse.router)
 app.include_router(einkauf.router)
 app.include_router(bild_analyse.router)
 app.include_router(chat.router)
+app.include_router(korpus.router)
 
 
 @app.get("/api/health")
