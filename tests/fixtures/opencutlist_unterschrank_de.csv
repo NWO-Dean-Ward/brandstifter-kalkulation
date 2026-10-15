@@ -1,0 +1,9 @@
+﻿Nr.;Bezeichnung;Anzahl;Länge - roh;Breite - roh;Dicke - roh;Länge;Breite;Dicke;Fläche - fertig;Materialtyp;Materialname;Materialbeschreibung;URL des Materials;Instanzbezeichnungen;Beschreibung;URL;Badges;Kantenband Länge 1;Kantenband Länge 2;Kantenband Breite 1;Kantenband Breite 2;Vorderseite;Rückseite;Tags
+A;Seite;2;722mm;562mm;19mm;720mm;560mm;19mm;0,81 m²;Platte;Egger W1000 ST9 Premiumweiss;;;;;;;ABS W1000 (1mm x 23mm);;;;;;Korpus
+B;Boden;1;564mm;562mm;19mm;562mm;560mm;19mm;0,31 m²;Platte;Egger W1000 ST9 Premiumweiss;;;;;;;ABS W1000 (1mm x 23mm);;;;;;Korpus
+C;Einlegeboden;1;562mm;518mm;19mm;560mm;516mm;19mm;0,29 m²;Platte;Egger W1000 ST9 Premiumweiss;;;;;;;ABS W1000 (1mm x 23mm);;;;;;Korpus
+D;Rückwand;1;696mm;576mm;8mm;696mm;576mm;8mm;0,4 m²;Platte;HDF weiß;;;;;;;;;;;;;Korpus
+E;Tür;1;719mm;599mm;19mm;717mm;597mm;19mm;0,43 m²;Platte;Egger U999 ST2 Schwarz;;;;;;;ABS U999 (2mm x 23mm);ABS U999 (2mm x 23mm);ABS U999 (2mm x 23mm);ABS U999 (2mm x 23mm);;;Front
+F;Griffleiste;1;620mm;35mm;22mm;600mm;30mm;20mm;;Massivholz;Eiche massiv;;;;;;;;;;;;;Front
+G;Topfscharnier Blum CLIP top;2;;;;;;;;Zubehör;Beschläge;;;;;;;;;;;;;
+H;Sockelfuss;4;;;;;;;;Zubehör;Beschläge;;;;;;;;;;;;;

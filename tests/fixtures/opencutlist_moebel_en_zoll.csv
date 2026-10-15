@@ -1,0 +1,5 @@
+No.,Designation,Quantity,Length - raw,Width - raw,Thickness - raw,Length,Width,Thickness,Area - final,Material type,Material name,Edge Length 1,Edge Length 2,Edge Width 1,Edge Width 2
+A,Side,2,"28 3/8""","22 1/8""","3/4""","28 3/8""","22 1/8""","3/4""",,Sheet Goods,Plywood Birch,Birch edge (1mm x 22mm),,,
+B,Top,1,"1' 11 1/2""","22 1/8""","3/4""","1' 11 1/2""","22 1/8""","3/4""",,Sheet Goods,Plywood Birch,Birch edge (1mm x 22mm),,,
+,Birch edge (1mm x 22mm),1,2.5m,,,2.5m,,,,Edge Banding,Birch edge (1mm x 22mm),,,,
+C,Drawer slide 500,2,,,,,,,,Hardware,Slides,,,,

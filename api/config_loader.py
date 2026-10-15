@@ -6,6 +6,7 @@ Dateien:
 - config/zuschlaege.yaml
 - config/stundensaetze.yaml
 - config/schreiners_buero.yaml
+- config/korpus.yaml (Korpus-Generator: Konstruktionsregeln, Richtwerte)
 - config/partner-logins.yaml (Fernet-verschluesselt)
 - config/.secret_key (auto-generiert, in .gitignore)
 """
@@ -52,6 +53,7 @@ class AppConfig:
         self.zuschlaege: dict[str, Any] = {}
         self.stundensaetze: dict[str, Any] = {}
         self.schreiners_buero: dict[str, Any] = {}
+        self.korpus: dict[str, Any] = {}
         self.reload()
 
     def reload(self) -> None:
@@ -63,6 +65,10 @@ class AppConfig:
             self.schreiners_buero = _load_yaml("schreiners_buero.yaml")
         except FileNotFoundError:
             self.schreiners_buero = {}
+        try:
+            self.korpus = _load_yaml("korpus.yaml")
+        except FileNotFoundError:
+            self.korpus = {}
 
     def get_maschine(self, name: str) -> dict[str, Any]:
         """Gibt Konfiguration einer Maschine zurück."""

@@ -11,7 +11,9 @@ async function request(path, options = {}) {
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: res.statusText }));
-    throw new Error(err.detail || `HTTP ${res.status}`);
+    // FastAPI-Validierungsfehler liefern eine Liste statt eines Textes
+    const detail = Array.isArray(err.detail) ? err.detail.map(d => d.msg).join('; ') : err.detail;
+    throw new Error(detail || `HTTP ${res.status}`);
   }
   return res;
 }
@@ -190,6 +192,26 @@ export const analyse = {
     }
     return res.json();
   },
+  opencutlistUpload: async (dateien, qualitaet = 'standard') => {
+    const form = new FormData();
+    const files = dateien instanceof FileList ? Array.from(dateien) : Array.isArray(dateien) ? dateien : [dateien];
+    for (const f of files) {
+      form.append('dateien', f);
+    }
+    form.append('qualitaet', qualitaet);
+    const res = await fetch(`${BASE}/analyse/opencutlist-upload`, { method: 'POST', body: form });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: res.statusText }));
+      throw new Error(err.detail || `HTTP ${res.status}`);
+    }
+    return res.json();
+  },
+};
+
+// --- Korpus-Generator ---
+export const korpus = {
+  vorlagen: () => json('/korpus/vorlagen'),
+  berechnen: (data) => json('/korpus/berechnen', { method: 'POST', body: JSON.stringify(data) }),
 };
 
 // --- Lernen ---

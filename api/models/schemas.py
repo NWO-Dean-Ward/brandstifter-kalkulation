@@ -259,3 +259,31 @@ class UeberschreibungResponse(BaseModel):
     begruendung: str
     geaendert_am: str
     geaendert_von: str
+
+
+# --- Korpus-Generator ---
+
+class KorpusRequest(BaseModel):
+    typ: str = "unterschrank"  # unterschrank | haengeschrank | hochschrank
+    bezeichnung: str = ""
+    anzahl: int = 1
+    breite_mm: float = 600
+    hoehe_mm: float = 720
+    tiefe_mm: float = 560
+    einlegeboeden: int = 0
+    tueren: int = 1
+    schubkaesten: int = 0
+    sockel_hoehe_mm: float = 0
+    sockelblende: bool = True
+    griffe: bool = True
+    montage: bool = True
+    korpus_material: str = ""
+    korpus_staerke_mm: float | None = None  # None -> config/korpus.yaml
+    korpus_maserung: bool = False
+    front_material: str = ""
+    front_staerke_mm: float | None = None
+    front_maserung: bool = False
+    rueckwand_material: str = ""
+    rueckwand_staerke_mm: float | None = None
+    rueckwand_art: str | None = None  # eingenutet | aufgesetzt | keine
+    qualitaet: str = "standard"  # standard | hochwertig (CNC-Kapazitaet)

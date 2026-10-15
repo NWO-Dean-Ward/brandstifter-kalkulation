@@ -32,6 +32,12 @@ Agenten-basiert: LeadAgent orchestriert 12 Subagenten. Kommunikation über Agent
 11. EinkaufsAgent – Playwright-Preisrecherche (Haefele/Blum/Egger/Amazon/Google Shopping)
 12. HolzTuscheAgent – B2B-Preissync bei Holz-Tusche (Playwright-Login, Shopware)
 
+### Korpus-Generator (kein Subagent, reine Rechenlogik)
+- agents/korpus_generator.py: Typ + Masse + Ausstattung -> Stueckliste, Plattenbedarf, Kanten, Beschlaege, Stunden
+- werte_stueckliste_aus() ist die gemeinsame Auswertung fuer Korpus-Generator UND OpenCutList-Import (agents/opencutlist_import.py)
+- Ergebnisblock "kalkulator_import" wird vom Kalkulator (Kalkulator.jsx) direkt uebernommen
+- Regeln/Richtwerte/Vorlagen: config/korpus.yaml (fehlender Wert -> KonfigurationsFehler -> HTTP 500)
+
 ## Wichtige Regeln
 - Lackierung = immer Fremdleistung mit konfigurierbarem Aufschlag
 - CNC: Holzher Nextec 7707, 13 Platten/Schicht (hochwertig), 20/Schicht (standard)
@@ -43,6 +49,10 @@ Agenten-basiert: LeadAgent orchestriert 12 Subagenten. Kommunikation über Agent
 - EinkaufsAgent kauft NIEMALS automatisch ein – nur Recherche
 - Manuelle Ueberschreibungen: Pflicht-Begruendung, Audit-Trail
 - Smartwop-CSV Material-Codes = Egger-Dekornummern (W1000=Premium Weiss, H1345=Eiche Sherman natur)
+- Korpus-Preise nur aus Flaechen/Laengen/Stueckzahlen -> monoton (groesser/mehr wird nie billiger, Tests in test_korpus_generator.py)
+- Zuschnitt-Schaetzung (MaxRects) ist nur Information, fliesst NICHT in den Preis ein; Verschnitt-Warnung erst ab 3 Platten
+- Preis-Lookup Korpus: PreisKatalog (kategorie-bewusst, laengster Teiltreffer), sonst Richtwert aus korpus.yaml mit Warnung
+- Kein HOP-Export aus dem Korpus-Generator, bis Bohrbilder gegen echte SmartWOP-Programme geprueft sind
 
 ## DB-Tabellen
 projekte, positionen, materialpreise, maschineneinsaetze, lernhistorie, konfiguration_log, werkstuecke, zukaufteile, manuelle_ueberschreibungen, altprojekt_analysen
@@ -60,7 +70,8 @@ projekte, positionen, materialpreise, maschineneinsaetze, lernhistorie, konfigur
 - /api/lernen/ – Lern-Agent Statistik/Vorschlaege
 - /api/cnc/ – HOP/MPR Parse, HOP-Export, Stueckliste, Nesting
 - /api/schreiners-buero/ – ERP CSV/API
-- /api/analyse/ – Altprojekt-Scan/Excel/GAEB/Smartwop/Komplett/Inflation/Historie
+- /api/analyse/ – Altprojekt-Scan/Excel/GAEB/Smartwop/OpenCutList-Upload/Komplett/Inflation/Historie
+- /api/korpus/ – Vorlagen, Berechnen (parametrischer Korpus -> Stueckliste + kalkulator_import)
 - /api/einkauf/ – Preisrecherche (Einzel/Batch/Haefele/Amazon/Google/Speichern/Holz-Tusche/Sync)
 
 ## Verzeichnisstruktur
@@ -70,7 +81,7 @@ projekte, positionen, materialpreise, maschineneinsaetze, lernhistorie, konfigur
 - config/ – YAML-Konfiguration + .secret_key + partner-logins.yaml
 - data/ – Preislisten, Projekte, SQLite DB, SB-Austausch (sb_import/, sb_export/)
 - exports/ – Generierte Dateien (exports/cnc/ fuer HOP/Stuecklisten)
-- tests/ – 74 Tests (test_erweiterung.py = 24 Tests fuer Erweiterung)
+- tests/ – 140 Tests (test_erweiterung.py = 24, test_korpus_generator.py = 45, test_opencutlist_import.py = 21)
 
 ## Entwicklungshinweise
 - venv aktivieren: `.venv/Scripts/python.exe` direkt nutzen (source activate funktioniert nicht in dieser Shell)
@@ -95,6 +106,9 @@ projekte, positionen, materialpreise, maschineneinsaetze, lernhistorie, konfigur
 - FK-Enforcement: PRAGMA foreign_keys = ON in get_db() und init_db_sync()
 - Playwright: `pip install playwright && playwright install chromium` (einmalig)
 - Egger-Dekore: 100+ Dekore in agents/analyse_agent.py EGGER_DEKORE dict
+- OpenCutList-CSV: Standard-Export "Zuschnittliste" (Semikolon, UTF-8 BOM); Spaltentitel DE/EN/FR aus OpenCutList-i18n,
+  Laengen als SketchUp-Text ("600mm", "60 cm", "23 5/8\""); Kantenband-Zeilen ersetzen Kanten an den Teilen (keine Doppelzaehlung)
+- Kalkulator.jsx: Zeilen-IDs ueber nextIdRef (useRef) - nid() mehrfach pro Handler muss eindeutige IDs liefern
 
 ## Frontend UI-Regeln
 
@@ -139,3 +153,4 @@ Bei Frontend-Aufgaben folgende Rolle einnehmen:
 5. SmartWOP/NCHops CNC-Integration ✓ (HOP/MPR Parse, HOP-Export, Stueckliste, Nesting, Zeitberechnung)
 6. Schreiner's Buero ERP-Anbindung ✓ (Auftraege, Stuecklisten, Kunden, Materialpreise, CSV Import/Export)
 7. Erweiterung ✓ (Werkstuecke, Zukaufteile, Ueberschreibungen, AnalyseAgent, EinkaufsAgent, Egger-Mapping, Fernet, Tab-Frontend)
+8. Korpus-Generator + OpenCutList-Import (SketchUp) – Kalkulator-Integration ✓; offen: Uebernahme in Projekt/Ausschreibung (Werkstuecke), HOP-Export, Kalibrierung Richtwerte gegen Nachkalkulation

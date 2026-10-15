@@ -1,0 +1,121 @@
+# Korpus-Generator: Konstruktionsregeln, Richtwerte und Fallback-Preise.
+# Alle Masse in mm, Zeiten in Stunden, Preise netto in EUR.
+# Richtwerte gegen die Nachkalkulation pruefen und hier anpassen.
+
+konstruktion:
+  korpus_staerke_mm: 19
+  front_staerke_mm: 19
+  rueckwand_staerke_mm: 8
+  rueckwand_art: eingenutet          # eingenutet | aufgesetzt | keine
+  nut_tiefe_mm: 8
+  nut_abstand_hinten_mm: 16          # Lichte hinter der Rueckwand
+  traverse_breite_mm: 100            # Unterschrank: zwei Traversen statt Deckel
+  fuge_mm: 3                         # Fuge zwischen zwei Fronten
+  randfuge_mm: 1.5                   # Fuge Front zu Korpus-Aussenkante
+  einlegeboden_luft_mm: 2            # Luft seitlich (gesamt)
+  einlegeboden_rueckversatz_mm: 20   # Einlegeboden kuerzer als lichte Tiefe
+  schubkasten_front_hoehe_mm: 180    # nur bei Kombination Tuer + Schubkasten
+  schubkasten_staerke_mm: 16         # Boden + Rueckwand Schubkasten
+  schubkasten_seitenluft_mm: 35      # Boden = lichte Breite - Wert (systemabhaengig)
+  schubkasten_tiefe_abzug_mm: 10     # Nennlaenge = lichte Tiefe - Wert, auf 50 mm abgerundet
+  min_tuer_hoehe_mm: 150
+
+grenzwerte:
+  max_tuerbreite_mm: 600             # darueber Warnung (Durchhang)
+  max_spannweite_einlegeboden_mm: 800
+
+kalkulation:
+  verschnitt_prozent: 15             # Aufschlag auf Netto-m2 im Kalkulator
+  kanten_zugabe_mm: 20               # Ueberstand pro Kantenstueck
+  kanten_bearbeitung_eur_lfm: 1.0    # entspricht Spalte "Bearbeitung" im Kalkulator
+
+kanten:
+  korpus: "ABS-Kante 1 mm Korpusdekor"
+  front: "ABS-Kante 2 mm Frontdekor"
+
+# Fallback-Preise, wenn das Material nicht in der Materialpreis-DB steht
+fallback_preise:
+  platte_eur_m2: 35.0
+  rueckwand_eur_m2: 6.0
+  kante_eur_lfm: 1.0
+
+beschlaege:
+  scharnier:
+    bezeichnung: "Topfscharnier mit Daempfung inkl. Montageplatte"
+    preis: 6.50
+  bodentraeger:
+    bezeichnung: "Bodentraeger 5 mm"
+    preis: 0.15
+  sockelfuss:
+    bezeichnung: "Sockelfuss verstellbar"
+    preis: 1.20
+  schubkasten_set:
+    bezeichnung: "Schubkasten-Set Vollauszug mit Daempfung"
+    preis: 45.00
+  griff:
+    bezeichnung: "Griff Standard"
+    preis: 4.00
+  aufhaenger:
+    bezeichnung: "Schrankaufhaenger (Paar)"
+    preis: 6.00
+
+# Tuerhoehe bis (mm) -> Anzahl Scharniere
+scharniere_nach_tuerhoehe:
+  - [900, 2]
+  - [1600, 3]
+  - [2000, 4]
+  - [2600, 5]
+
+zeiten:
+  arbeitsvorbereitung_pro_variante_h: 0.5
+  bankraum_pro_korpus_h: 0.75
+  bankraum_pro_front_h: 0.15
+  bankraum_pro_schubkasten_h: 0.25
+  montage_pro_korpus_h: 1.0
+
+vorlagen:
+  - name: "Unterschrank 600"
+    typ: unterschrank
+    breite_mm: 600
+    hoehe_mm: 720
+    tiefe_mm: 560
+    einlegeboeden: 1
+    tueren: 1
+    schubkaesten: 0
+    sockel_hoehe_mm: 150
+  - name: "Unterschrank 600, 3 Schubkaesten"
+    typ: unterschrank
+    breite_mm: 600
+    hoehe_mm: 720
+    tiefe_mm: 560
+    einlegeboeden: 0
+    tueren: 0
+    schubkaesten: 3
+    sockel_hoehe_mm: 150
+  - name: "Haengeschrank 600"
+    typ: haengeschrank
+    breite_mm: 600
+    hoehe_mm: 720
+    tiefe_mm: 350
+    einlegeboeden: 2
+    tueren: 1
+    schubkaesten: 0
+    sockel_hoehe_mm: 0
+  - name: "Hochschrank 600"
+    typ: hochschrank
+    breite_mm: 600
+    hoehe_mm: 2000
+    tiefe_mm: 560
+    einlegeboeden: 4
+    tueren: 1
+    schubkaesten: 0
+    sockel_hoehe_mm: 150
+  - name: "Zimmerschrank 1000 (Hotel/Pflege)"
+    typ: hochschrank
+    breite_mm: 1000
+    hoehe_mm: 2000
+    tiefe_mm: 600
+    einlegeboeden: 4
+    tueren: 2
+    schubkaesten: 0
+    sockel_hoehe_mm: 100
