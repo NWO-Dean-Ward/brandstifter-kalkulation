@@ -39,6 +39,7 @@ from agents.analyse_agent import AnalyseAgent
 from agents.einkaufs_agent import EinkaufsAgent
 from agents.bild_analyse_agent import BildAnalyseAgent
 from agents.holz_tusche_agent import HolzTuscheAgent
+from agents.korpus_kalkulator import KorpusKalkulator
 
 
 def _init_pipeline(app_config: AppConfig) -> tuple[LeadAgent, "LLMRouter"]:
@@ -107,8 +108,17 @@ def _init_pipeline(app_config: AppConfig) -> tuple[LeadAgent, "LLMRouter"]:
         logins=logins.get("holz_tusche", {}),
     )
 
+    # Korpus-Positionen der Ausschreibung (Korpus-Generator statt Standard-Schaetzung)
+    korpus_agent = KorpusKalkulator()
+    korpus_agent.configure(
+        regeln=app_config.korpus,
+        maschinen=app_config.maschinen,
+        stundensaetze=app_config.stundensaetze,
+        db_pfad="data/kalkulation.db",
+    )
+
     # Beim Lead-Agent registrieren
-    for agent in [parser, material, maschinen, lohn, zuschlag, export, lern, cnc_agent, sb_agent, analyse, einkauf_agent, bild_agent, holz_tusche_agent]:
+    for agent in [parser, material, maschinen, lohn, zuschlag, export, lern, cnc_agent, sb_agent, analyse, einkauf_agent, bild_agent, holz_tusche_agent, korpus_agent]:
         lead.register_subagent(agent)
 
     return lead, llm_router

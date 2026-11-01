@@ -16,7 +16,7 @@ Ausschreibungs- & Kalkulationssoftware für AMP & Brandstifter GmbH (Schreinerei
 - Sprache: Deutsch (UI komplett)
 
 ## Architektur
-Agenten-basiert: LeadAgent orchestriert 12 Subagenten. Kommunikation über AgentMessage-Protokoll.
+Agenten-basiert: LeadAgent orchestriert 13 Subagenten. Kommunikation über AgentMessage-Protokoll.
 
 ### Subagenten
 1. DokumentParser – GAEB/PDF/Excel Parsing
@@ -31,12 +31,20 @@ Agenten-basiert: LeadAgent orchestriert 12 Subagenten. Kommunikation über Agent
 10. AnalyseAgent – Altprojekt-Analyse (Excel/GAEB/Smartwop-CSV, Egger-Dekore, Inflation)
 11. EinkaufsAgent – Playwright-Preisrecherche (Haefele/Blum/Egger/Amazon/Google Shopping)
 12. HolzTuscheAgent – B2B-Preissync bei Holz-Tusche (Playwright-Login, Shopware)
+13. KorpusKalkulator – Korpus-Positionen der Ausschreibung ueber den Korpus-Generator (statt Material/Maschinen/Lohn-Schaetzung)
 
 ### Korpus-Generator (kein Subagent, reine Rechenlogik)
 - agents/korpus_generator.py: Typ + Masse + Ausstattung -> Stueckliste, Plattenbedarf, Kanten, Beschlaege, Stunden
 - werte_stueckliste_aus() ist die gemeinsame Auswertung fuer Korpus-Generator UND OpenCutList-Import (agents/opencutlist_import.py)
 - Ergebnisblock "kalkulator_import" wird vom Kalkulator (Kalkulator.jsx) direkt uebernommen
 - Regeln/Richtwerte/Vorlagen: config/korpus.yaml (fehlender Wert -> KonfigurationsFehler -> HTTP 500)
+- Korpus-Position: positionen.kalkulationsquelle = 'korpus', korpus_parameter = JSON (anzahl = Korpusse je Positionseinheit,
+  Pipeline rechnet mit ceil(Menge x anzahl)); LeadAgent schickt sie an den KorpusKalkulator, Rest an die Standard-Kalkulatoren,
+  und fuegt die Ergebnisse zusammen. CNC-/Montage-Kapazitaet zaehlt Korpus-Stunden mit (zusatz_cnc_stunden, zusatz_montage)
+- Kostenzuordnung Korpus in der Ausschreibung: Material = Platten+Kantenmaterial+Beschlaege; Maschinen = CNC-h x CNC-Satz
+  + Kanten-Bearbeitung; Lohn = (AV + CNC-Bedienung + Bankraum + Montage) x einheitlicher_stundensatz
+- Ungueltige Korpus-Parameter brechen die Kalkulation nicht ab: Position faellt mit Warnung auf die Standard-Schaetzung zurueck
+- Jede Kalkulation ersetzt die Werkstuecke mit quelle = 'korpus-generator' der Korpus-Positionen; manuelle bleiben
 
 ## Wichtige Regeln
 - Lackierung = immer Fremdleistung mit konfigurierbarem Aufschlag
@@ -56,10 +64,11 @@ Agenten-basiert: LeadAgent orchestriert 12 Subagenten. Kommunikation über Agent
 
 ## DB-Tabellen
 projekte, positionen, materialpreise, maschineneinsaetze, lernhistorie, konfiguration_log, werkstuecke, zukaufteile, manuelle_ueberschreibungen, altprojekt_analysen
+- Spalten, die nachtraeglich dazukommen, in api/database.py MIGRATIONEN eintragen (ALTER TABLE beim Start, idempotent)
 
 ## API-Routes
 - /api/projekte/ – CRUD Projekte
-- /api/projekte/{id}/positionen/ – CRUD + PATCH Positionen
+- /api/projekte/{id}/positionen/ – CRUD + PATCH Positionen; PUT/DELETE /{pos_id}/korpus = Korpus-Position setzen/entfernen
 - /api/projekte/{id}/werkstuecke/ – CRUD Werkstuecke (Einzelbauteile)
 - /api/projekte/{id}/zukaufteile/ – CRUD Zukaufteile (auto VK-Berechnung)
 - /api/projekte/{id}/ueberschreibungen/ – Manuelle Wert-Aenderungen mit Audit
@@ -81,7 +90,7 @@ projekte, positionen, materialpreise, maschineneinsaetze, lernhistorie, konfigur
 - config/ – YAML-Konfiguration + .secret_key + partner-logins.yaml
 - data/ – Preislisten, Projekte, SQLite DB, SB-Austausch (sb_import/, sb_export/)
 - exports/ – Generierte Dateien (exports/cnc/ fuer HOP/Stuecklisten)
-- tests/ – 140 Tests (test_erweiterung.py = 24, test_korpus_generator.py = 45, test_opencutlist_import.py = 21)
+- tests/ – 161 Tests (test_korpus_generator.py = 45, test_opencutlist_import.py = 21, test_korpus_projekt.py = 13, test_positionspreise.py = 8)
 
 ## Entwicklungshinweise
 - venv aktivieren: `.venv/Scripts/python.exe` direkt nutzen (source activate funktioniert nicht in dieser Shell)
@@ -96,7 +105,8 @@ projekte, positionen, materialpreise, maschineneinsaetze, lernhistorie, konfigur
 - GAEB-Parser: Namespace-aware, collect_spans() für verschachtelte <span> Elemente
 - LLM-Router: qwen2.5-coder:14b primaer, gpt-oss:20b fuer Rechenlogik, Claude API fuer Lead/Lern
 - Frontend Dev: `cd frontend && npx vite` (Port 5173, Proxy auf 8080)
-- Frontend Projekt.jsx: 4 Tabs (Positionen, Werkstuecke, Zukaufteile, Nachkalkulation), Status-Dropdown, Inline-Edit per Doppelklick, Projekt-Kopieren
+- Frontend Projekt.jsx: 4 Tabs (Positionen, Werkstuecke, Zukaufteile, Nachkalkulation), Status-Dropdown, Inline-Edit per Doppelklick, Projekt-Kopieren,
+  Korpus-Button je Position (KorpusDialog im Positions-Modus); Tabs laden nach Aenderungen still nach (loadData(true))
 - Frontend Dashboard: Status-Filter-Buttons, Kopieren-Button pro Projekt, Status "verloren"
 - Projekt-Kopieren: POST /api/projekte/{id}/kopieren - dupliziert Projekt inkl. Positionen
 - Windows: Keine Unicode-Sonderzeichen in Print-Ausgaben (cp1252)
@@ -157,4 +167,4 @@ Bei Frontend-Aufgaben folgende Rolle einnehmen:
 5. SmartWOP/NCHops CNC-Integration ✓ (HOP/MPR Parse, HOP-Export, Stueckliste, Nesting, Zeitberechnung)
 6. Schreiner's Buero ERP-Anbindung ✓ (Auftraege, Stuecklisten, Kunden, Materialpreise, CSV Import/Export)
 7. Erweiterung ✓ (Werkstuecke, Zukaufteile, Ueberschreibungen, AnalyseAgent, EinkaufsAgent, Egger-Mapping, Fernet, Tab-Frontend)
-8. Korpus-Generator + OpenCutList-Import (SketchUp) – Kalkulator-Integration ✓; offen: Uebernahme in Projekt/Ausschreibung (Werkstuecke), HOP-Export, Kalibrierung Richtwerte gegen Nachkalkulation
+8. Korpus-Generator + OpenCutList-Import (SketchUp) – Kalkulator ✓, Projekt/Ausschreibung (Korpus-Positionen, Werkstuecke) ✓; offen: HOP-Export, Kalibrierung Richtwerte gegen Nachkalkulation

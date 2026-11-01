@@ -10,6 +10,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Separator } from "@/components/ui/separator"
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table"
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select"
+import KorpusDialog from '../components/KorpusDialog'
 
 function euro(val) {
   return new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(val || 0)
@@ -42,8 +43,9 @@ export default function Projekt() {
     loadData()
   }, [id])
 
-  const loadData = async () => {
-    setLoading(true)
+  // still = true: nachladen ohne Lade-Bildschirm, damit Tabs (und deren Meldungen) erhalten bleiben
+  const loadData = async (still = false) => {
+    if (!still) setLoading(true)
     try {
       const [p, pos] = await Promise.all([
         projekte.get(id),
@@ -315,7 +317,7 @@ export default function Projekt() {
 
         {/* Tab-Inhalt */}
         <TabsContent value="positionen" className="mt-4">
-          <PositionenTab posList={posList} projektId={id} onReload={loadData} />
+          <PositionenTab posList={posList} projektId={id} onReload={() => loadData(true)} />
         </TabsContent>
         <TabsContent value="werkstuecke" className="mt-4">
           <WerkstueckeTab projektId={id} posList={posList} />
@@ -324,7 +326,7 @@ export default function Projekt() {
           <ZukaufteileTab projektId={id} posList={posList} />
         </TabsContent>
         <TabsContent value="nachkalkulation" className="mt-4">
-          <NachkalkulationTab projektId={id} posList={posList} onReload={loadData} />
+          <NachkalkulationTab projektId={id} posList={posList} onReload={() => loadData(true)} />
         </TabsContent>
       </Tabs>
     </div>
@@ -340,6 +342,43 @@ function PositionenTab({ posList, projektId, onReload }) {
   const [form, setForm] = useState({
     pos_nr: '', kurztext: '', menge: 1, einheit: 'STK', material: '',
   })
+  // Korpus-Generator fuer eine Position: { position, startwerte } (stabil, solange der Dialog offen ist)
+  const [korpusFuer, setKorpusFuer] = useState(null)
+  const [meldung, setMeldung] = useState(null)
+
+  const oeffneKorpus = (p) => {
+    let gespeichert = null
+    try {
+      gespeichert = p.korpus_parameter ? JSON.parse(p.korpus_parameter) : null
+    } catch {
+      gespeichert = null
+    }
+    setKorpusFuer({ position: p, startwerte: gespeichert || { bezeichnung: p.kurztext || '', anzahl: 1 } })
+  }
+
+  const speichereKorpus = async (ergebnis, parameter) => {
+    const pos = korpusFuer.position
+    try {
+      const r = await positionen.korpusSpeichern(projektId, pos.id, parameter)
+      setMeldung({ typ: 'success', text: `Pos ${pos.pos_nr}: ${r.hinweis}` })
+      onReload()
+    } catch (err) {
+      setMeldung({ typ: 'error', text: `Pos ${pos.pos_nr}: Korpus nicht gespeichert - ${err.message}` })
+    }
+  }
+
+  const entferneKorpus = async () => {
+    const pos = korpusFuer.position
+    if (!confirm(`Korpus von Pos ${pos.pos_nr} entfernen? Die Korpus-Werkstuecke werden geloescht.`)) return
+    try {
+      await positionen.korpusEntfernen(projektId, pos.id)
+      setKorpusFuer(null)
+      setMeldung({ typ: 'success', text: `Pos ${pos.pos_nr}: zurueck auf Standard-Schaetzung. Kalkulation neu starten.` })
+      onReload()
+    } catch (err) {
+      setMeldung({ typ: 'error', text: `Pos ${pos.pos_nr}: ${err.message}` })
+    }
+  }
 
   const handleAdd = async (e) => {
     e.preventDefault()
@@ -390,6 +429,17 @@ function PositionenTab({ posList, projektId, onReload }) {
 
   return (
     <div className="glass-card overflow-hidden">
+      <KorpusDialog
+        open={!!korpusFuer}
+        onOpenChange={(offen) => { if (!offen) setKorpusFuer(null) }}
+        startwerte={korpusFuer?.startwerte}
+        positionsMenge={korpusFuer ? korpusFuer.position.menge : null}
+        positionsEinheit={korpusFuer?.position.einheit}
+        titel={korpusFuer ? `Korpus fuer Pos ${korpusFuer.position.pos_nr} - ${korpusFuer.position.kurztext}` : ''}
+        uebernehmenLabel="In Position speichern"
+        onUebernehmen={speichereKorpus}
+        onEntfernen={korpusFuer?.position.kalkulationsquelle === 'korpus' ? entferneKorpus : null}
+      />
       <div className="px-5 py-4 border-b border-slate-700/30 flex justify-between items-center">
         <h2 className="font-semibold text-slate-200">Positionen ({posList.length})</h2>
         <Button onClick={() => setShowForm(!showForm)} size="sm"
@@ -442,6 +492,17 @@ function PositionenTab({ posList, projektId, onReload }) {
             Speichern
           </Button>
         </form>
+      )}
+
+      {meldung && (
+        <Alert className={`m-4 mb-0 ${meldung.typ === 'error'
+          ? 'bg-red-500/10 text-red-400 border-red-500/30'
+          : 'bg-green-500/10 text-green-400 border-green-500/30'}`}>
+          <AlertDescription className="flex items-center justify-between">
+            <span>{meldung.text}</span>
+            <button onClick={() => setMeldung(null)} className="ml-2 text-xs opacity-60 hover:opacity-100" aria-label="Meldung schliessen">X</button>
+          </AlertDescription>
+        </Alert>
       )}
 
       {posList.length === 0 && !showForm ? (
@@ -501,7 +562,15 @@ function PositionenTab({ posList, projektId, onReload }) {
                 <React.Fragment key={p.id}>
                 <TableRow className="hover:bg-slate-700/30 cursor-pointer border-slate-700/30" onDoubleClick={() => startEdit(p)}>
                   <TableCell className="px-5 py-3 text-sm font-mono text-slate-300">{p.pos_nr}</TableCell>
-                  <TableCell className="px-5 py-3 text-sm text-white">{p.kurztext}</TableCell>
+                  <TableCell className="px-5 py-3 text-sm text-white">
+                    {p.kurztext}
+                    {p.kalkulationsquelle === 'korpus' && (
+                      <Badge variant="outline" className="ml-2 bg-amber-500/15 text-amber-300 border-amber-500/40 text-xs"
+                        title="Wird ueber den Korpus-Generator kalkuliert">
+                        Korpus
+                      </Badge>
+                    )}
+                  </TableCell>
                   <TableCell className="px-5 py-3 text-sm text-right text-slate-300">{p.menge}</TableCell>
                   <TableCell className="px-5 py-3 text-sm text-slate-300">{p.einheit}</TableCell>
                   <TableCell className="px-5 py-3 text-sm text-slate-300">{p.material || '-'}</TableCell>
@@ -521,6 +590,9 @@ function PositionenTab({ posList, projektId, onReload }) {
                     )}
                   </TableCell>
                   <TableCell className="px-5 py-3 text-right">
+                    <Button variant="ghost" size="sm" onClick={() => oeffneKorpus(p)}
+                      className="text-xs text-amber-500 hover:text-amber-300 mr-1 px-2 h-auto py-1"
+                      title="Position mit dem Korpus-Generator kalkulieren">Korpus</Button>
                     <Button variant="ghost" size="sm" onClick={() => startEdit(p)} className="text-xs text-slate-400 hover:text-amber-400 mr-1 px-2 h-auto py-1" title="Bearbeiten">Ed</Button>
                     <Button variant="ghost" size="sm" onClick={() => handleDelete(p.id)}
                       className="text-xs text-slate-400 hover:text-red-400 px-2 h-auto py-1" title="Loeschen">X</Button>
@@ -742,10 +814,18 @@ function WerkstueckeTab({ projektId, posList = [] }) {
           <TableBody>
             {items.map(ws => (
               <TableRow key={ws.id} className="hover:bg-slate-700/30 border-slate-700/30">
-                <TableCell className="px-5 py-3 text-sm text-white">{ws.bezeichnung}</TableCell>
+                <TableCell className="px-5 py-3 text-sm text-white">
+                  {ws.bezeichnung}
+                  {ws.quelle === 'korpus-generator' && (
+                    <Badge variant="outline" className="ml-2 bg-amber-500/15 text-amber-300 border-amber-500/40 text-xs"
+                      title={`${ws.notizen} - wird bei jeder Kalkulation neu erzeugt`}>
+                      Korpus Pos {posList.find(p => p.id === ws.position_id)?.pos_nr ?? '?'}
+                    </Badge>
+                  )}
+                </TableCell>
                 <TableCell className="px-5 py-3 text-sm text-right text-slate-300">{ws.anzahl}</TableCell>
                 <TableCell className="px-5 py-3 text-sm text-right text-slate-300 font-mono">
-                  {ws.laenge_mm} x {ws.breite_mm} x {ws.tiefe_mm}
+                  {ws.laenge_mm} x {ws.breite_mm} x {ws.tiefe_mm || ws.staerke_mm}
                 </TableCell>
                 <TableCell className="px-5 py-3 text-sm text-slate-300">{ws.material || '-'}</TableCell>
                 <TableCell className="px-5 py-3 text-sm text-slate-300">{ws.oberflaeche || '-'}</TableCell>

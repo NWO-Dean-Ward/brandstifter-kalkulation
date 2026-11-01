@@ -61,7 +61,9 @@ CREATE TABLE IF NOT EXISTS positionen (
     platten_anzahl      REAL DEFAULT 0,
     kantenlaenge_lfm    REAL DEFAULT 0,
     schnittanzahl       INTEGER DEFAULT 0,
-    bohrungen_anzahl    INTEGER DEFAULT 0
+    bohrungen_anzahl    INTEGER DEFAULT 0,
+    kalkulationsquelle  TEXT DEFAULT '',    -- '' = Standard-Schaetzung | korpus = Korpus-Generator
+    korpus_parameter    TEXT DEFAULT ''     -- JSON KorpusParameter, anzahl = Korpusse je Positionseinheit
 );
 
 CREATE INDEX IF NOT EXISTS idx_positionen_projekt ON positionen(projekt_id);
@@ -141,7 +143,8 @@ CREATE TABLE IF NOT EXISTS werkstuecke (
     ist_fremdleistung INTEGER DEFAULT 0,     -- auto bei Lackiert-extern
     hop_datei       TEXT DEFAULT '',          -- Referenz auf HOP-Datei
     notizen         TEXT DEFAULT '',
-    erstellt_am     TEXT NOT NULL
+    erstellt_am     TEXT NOT NULL,
+    quelle          TEXT DEFAULT ''           -- '' = manuell | korpus-generator (wird bei Kalkulation ersetzt)
 );
 
 CREATE INDEX IF NOT EXISTS idx_werkstuecke_position ON werkstuecke(position_id);
@@ -203,6 +206,25 @@ CREATE TABLE IF NOT EXISTS altprojekt_analysen (
 """
 
 
+# Spalten, die nach der Erstanlage dazugekommen sind. CREATE TABLE IF NOT EXISTS legt sie
+# in bestehenden Datenbanken nicht an - deshalb per ALTER TABLE nachziehen.
+MIGRATIONEN: list[tuple[str, str, str]] = [
+    ("positionen", "kalkulationsquelle", "TEXT DEFAULT ''"),
+    ("positionen", "korpus_parameter", "TEXT DEFAULT ''"),
+    ("werkstuecke", "quelle", "TEXT DEFAULT ''"),
+]
+
+
+def _fehlende_spalten(conn: sqlite3.Connection) -> list[str]:
+    """ALTER-Statements fuer alle Spalten aus MIGRATIONEN, die in der DB fehlen."""
+    statements = []
+    for tabelle, spalte, typ in MIGRATIONEN:
+        vorhanden = {row[1] for row in conn.execute(f"PRAGMA table_info({tabelle})")}
+        if spalte not in vorhanden:
+            statements.append(f"ALTER TABLE {tabelle} ADD COLUMN {spalte} {typ}")
+    return statements
+
+
 async def init_db(db_path: Path | None = None) -> None:
     """Erstellt die Datenbank und alle Tabellen."""
     path = db_path or DB_PATH
@@ -211,6 +233,7 @@ async def init_db(db_path: Path | None = None) -> None:
     async with aiosqlite.connect(str(path)) as db:
         await db.executescript(SCHEMA_SQL)
         await db.commit()
+    init_db_sync(path)  # Migrationen (synchron, einmal beim Start)
 
 
 @asynccontextmanager
@@ -233,5 +256,7 @@ def init_db_sync(db_path: Path | None = None) -> None:
     conn.execute("PRAGMA foreign_keys = ON")
     conn.execute("PRAGMA journal_mode = WAL")
     conn.executescript(SCHEMA_SQL)
+    for statement in _fehlende_spalten(conn):
+        conn.execute(statement)
     conn.commit()
     conn.close()

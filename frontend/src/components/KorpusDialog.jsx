@@ -41,6 +41,16 @@ function toRequest(form) {
   return req
 }
 
+// Gespeicherte Parameter (Zahlen/null) -> Formularwerte (Strings)
+function toForm(werte) {
+  const form = { ...LEERES_FORMULAR }
+  for (const [k, v] of Object.entries(werte || {})) {
+    if (!(k in form) || v === undefined) continue
+    form[k] = typeof LEERES_FORMULAR[k] === 'boolean' ? !!v : (v === null ? '' : String(v))
+  }
+  return form
+}
+
 const inputClass = "h-8 bg-slate-800/60 border-slate-600 text-slate-200 text-sm placeholder-slate-500 focus:ring-amber-500/50 focus:border-amber-500/50"
 const triggerClass = "h-8 w-full bg-slate-800/60 border-slate-600 text-slate-200 text-sm"
 
@@ -76,8 +86,17 @@ function Kennzahl({ label, wert, sub }) {
 /**
  * Korpus-Generator: Masse und Ausstattung -> Stueckliste, Plattenbedarf, Kanten,
  * Beschlaege und Stunden (Berechnung auf dem Server, Live-Vorschau).
+ *
+ * Positions-Modus (positionsMenge gesetzt): "Anzahl" heisst Korpusse je Positionseinheit,
+ * die Vorschau rechnet Menge x Anzahl. startwerte fuellen das Formular beim Oeffnen.
+ * onUebernehmen(ergebnis, parameter) - parameter.anzahl ist der Formularwert.
  */
-export default function KorpusDialog({ open, onOpenChange, onUebernehmen }) {
+export default function KorpusDialog({
+  open, onOpenChange, onUebernehmen,
+  startwerte = null, positionsMenge = null, positionsEinheit = 'STK',
+  titel = 'Korpus-Generator', uebernehmenLabel = 'In Kalkulation uebernehmen', onEntfernen = null,
+}) {
+  const positionsModus = positionsMenge !== null && positionsMenge !== undefined
   const [form, setForm] = useState(LEERES_FORMULAR)
   const [vorlagen, setVorlagen] = useState([])
   const [vorlage, setVorlage] = useState('')
@@ -109,6 +128,14 @@ export default function KorpusDialog({ open, onOpenChange, onUebernehmen }) {
       .catch(() => setPlattenNamen([]))
   }, [open, vorlagen.length])
 
+  // Startwerte (z.B. gespeicherte Parameter einer Position) bei jedem Oeffnen uebernehmen
+  useEffect(() => {
+    if (open && startwerte) {
+      setForm(toForm(startwerte))
+      setVorlage('')
+    }
+  }, [open, startwerte])
+
   // Live-Vorschau: jede Aenderung neu berechnen (entprellt), veraltete Antworten verwerfen
   useEffect(() => {
     if (!open) return
@@ -116,7 +143,9 @@ export default function KorpusDialog({ open, onOpenChange, onUebernehmen }) {
     setLaedt(true)
     const timer = setTimeout(async () => {
       try {
-        const r = await korpusApi.berechnen(toRequest(form))
+        const req = toRequest(form)
+        if (positionsModus) req.anzahl = Math.max(1, Math.ceil(positionsMenge * (req.anzahl || 1) - 1e-9))
+        const r = await korpusApi.berechnen(req)
         if (nr !== anfrageNr.current) return
         setErgebnis(r)
         setFehler(null)
@@ -129,7 +158,7 @@ export default function KorpusDialog({ open, onOpenChange, onUebernehmen }) {
       }
     }, 350)
     return () => clearTimeout(timer)
-  }, [form, open])
+  }, [form, open, positionsModus, positionsMenge])
 
   const set = (feld, wert) => setForm(prev => ({ ...prev, [feld]: wert }))
 
@@ -146,7 +175,7 @@ export default function KorpusDialog({ open, onOpenChange, onUebernehmen }) {
 
   const uebernehmen = () => {
     if (!ergebnis) return
-    onUebernehmen(ergebnis)
+    onUebernehmen(ergebnis, toRequest(form))
     onOpenChange(false)
   }
 
@@ -161,10 +190,13 @@ export default function KorpusDialog({ open, onOpenChange, onUebernehmen }) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-6xl max-h-[92vh] overflow-hidden p-0 gap-0 bg-slate-900 border-slate-700 text-slate-200">
         <DialogHeader className="px-6 pt-5 pb-3 border-b border-slate-700/60">
-          <DialogTitle className="text-white">Korpus-Generator</DialogTitle>
+          <DialogTitle className="text-white">{titel}</DialogTitle>
           <DialogDescription className="text-slate-400 text-xs">
-            Masse und Ausstattung eingeben. Stueckliste, Plattenbedarf, Kanten, Beschlaege und Stunden
-            werden auf dem Server berechnet. Preise aus der Materialpreis-Datenbank, sonst Richtwerte aus config/korpus.yaml.
+            {positionsModus
+              ? `Die Position (${positionsMenge} ${positionsEinheit}) wird kuenftig ueber den Korpus-Generator kalkuliert. ` +
+                'Die Stueckliste geht als Werkstuecke ins Projekt; EP/GP kommen mit der naechsten Kalkulation.'
+              : 'Masse und Ausstattung eingeben. Stueckliste, Plattenbedarf, Kanten, Beschlaege und Stunden ' +
+                'werden auf dem Server berechnet. Preise aus der Materialpreis-Datenbank, sonst Richtwerte aus config/korpus.yaml.'}
           </DialogDescription>
         </DialogHeader>
 
@@ -189,7 +221,9 @@ export default function KorpusDialog({ open, onOpenChange, onUebernehmen }) {
                   </SelectContent>
                 </Select>
               </Feld>
-              <Feld label="Anzahl" htmlFor="korpus-anzahl">{zahlInput('anzahl', { min: 1, max: 200 })}</Feld>
+              <Feld label={positionsModus ? `Je ${positionsEinheit}` : 'Anzahl'} htmlFor="korpus-anzahl">
+                {zahlInput('anzahl', { min: 1, max: 1000, title: positionsModus ? 'Korpusse je Positionseinheit' : undefined })}
+              </Feld>
             </div>
 
             <Feld label="Bezeichnung" htmlFor="korpus-bezeichnung">
@@ -397,14 +431,21 @@ export default function KorpusDialog({ open, onOpenChange, onUebernehmen }) {
 
         <DialogFooter className="px-6 py-3 border-t border-slate-700/60 items-center">
           <span className="text-xs text-slate-500 mr-auto">
-            Uebernimmt Platten, Kanten, Beschlaege und Stunden in die Kalkulation. Zuschlaege und Lohnsaetze bleiben wie eingestellt.
+            {positionsModus
+              ? `${ergebnis?.kennzahlen?.teile_anzahl ?? '-'} Teile fuer ${positionsMenge} ${positionsEinheit}. Preise mit den Saetzen der Ausschreibung (Stundensaetze, Maschinen, Zuschlaege).`
+              : 'Uebernimmt Platten, Kanten, Beschlaege und Stunden in die Kalkulation. Zuschlaege und Lohnsaetze bleiben wie eingestellt.'}
           </span>
+          {onEntfernen && (
+            <Button variant="outline" onClick={onEntfernen} className="border-red-500/40 text-red-400 hover:bg-red-500/10">
+              Korpus entfernen
+            </Button>
+          )}
           <Button variant="outline" onClick={() => onOpenChange(false)} className="border-slate-600 text-slate-300">
             Abbrechen
           </Button>
           <Button onClick={uebernehmen} disabled={!ergebnis || !!fehler || laedt}
             className="bg-amber-600 hover:bg-amber-500 text-white disabled:opacity-40">
-            In Kalkulation uebernehmen
+            {uebernehmenLabel}
           </Button>
         </DialogFooter>
       </DialogContent>

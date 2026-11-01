@@ -146,6 +146,14 @@ async def starte_kalkulation(projekt_id: str):
                  projekt_id, pos_nr),
             )
 
+        # Korpus-Positionen: Stueckliste als Werkstuecke ins Projekt (ersetzt die vorherige)
+        from api.routes.positionen import schreibe_korpus_werkstuecke
+        position_id_je_nr = {str(pos["pos_nr"]): pos["id"] for pos in positionen}
+        for stueckliste in p.get("korpus_stuecklisten", []):
+            position_id = position_id_je_nr.get(str(stueckliste["pos_nr"]))
+            if position_id is not None:
+                await schreibe_korpus_werkstuecke(db, projekt_id, position_id, stueckliste)
+
         await db.commit()
 
     return KalkulationErgebnis(

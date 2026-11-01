@@ -49,7 +49,8 @@ class MaschinenKalkulator(BaseAgent):
         einsaetze: list[dict[str, Any]] = []
         warnungen: list[str] = []
         gesamt = 0.0
-        cnc_stunden_total = 0.0
+        # CNC-Stunden anderer Kalkulatoren (Korpus-Positionen) zaehlen fuer die Kapazitaet mit
+        cnc_stunden_total = float(message.payload.get("zusatz_cnc_stunden", 0))
 
         for pos in positionen:
             pos_ergebnis = await self._kalkuliere_position(pos, projekt_typ)

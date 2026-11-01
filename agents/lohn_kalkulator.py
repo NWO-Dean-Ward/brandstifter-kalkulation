@@ -92,6 +92,17 @@ class LohnKalkulator(BaseAgent):
             eintrag[0] += konstr_stunden + cnc_stunden + kanten_stunden + montage_stunden
             eintrag[1] += montage_stunden
 
+        # Montage anderer Kalkulatoren (Korpus-Positionen): zaehlt fuer Monteurplanung und
+        # Transport mit; der eigene Lohn dieser Positionen kommt vom jeweiligen Kalkulator.
+        zusatz_montage_stunden = 0.0
+        for zusatz in message.payload.get("zusatz_montage", []):
+            stunden = float(zusatz.get("stunden", 0))
+            zusatz_montage_stunden += stunden
+            montage_einheiten_total += float(zusatz.get("einheiten", 0))
+            if stunden > 0:
+                hat_montage = True
+            pos_stunden.setdefault(str(zusatz.get("pos_nr", "?")), [0.0, 0.0])[1] += stunden
+
         # Transport:
         # - Pauschal basierend auf Gesamtmenge
         # - Beladung Werkstatt + Entladung Baustelle + Rueckfahrt
@@ -108,7 +119,7 @@ class LohnKalkulator(BaseAgent):
             lohnkosten_gesamt += gewerk_data["kosten"]
 
         # Montageplanung
-        montage_gesamt_stunden = gewerke["montage"]["stunden"]
+        montage_gesamt_stunden = round(gewerke["montage"]["stunden"] + zusatz_montage_stunden, 2)
         monteure_benoetigt = self._berechne_monteure(montage_gesamt_stunden)
 
         montage_plan: dict[str, Any] = {
