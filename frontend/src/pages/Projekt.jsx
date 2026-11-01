@@ -537,6 +537,9 @@ function PositionenTab({ posList, projektId, onReload }) {
                         {(p.fremdleistungskosten || 0) > 0 && (
                           <span>Fremdleistung: <b className="text-purple-300">{euro(p.fremdleistungskosten)}</b></span>
                         )}
+                        <span title="GKZ, Gewinn, Wagnis, Montage- und Fremdleistungszuschlag">
+                          Zuschlaege: <b className="text-amber-400">{euro(p.gesamtpreis - (p.materialkosten || 0) - (p.maschinenkosten || 0) - (p.lohnkosten || 0) - (p.fremdleistungskosten || 0))}</b>
+                        </span>
                       </div>
                     </TableCell>
                   </TableRow>
