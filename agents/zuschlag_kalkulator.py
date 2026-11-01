@@ -51,18 +51,23 @@ class ZuschlagKalkulator(BaseAgent):
         lohn = message.payload.get("lohnkosten", {})
         projekt_typ = message.payload.get("projekt_typ", "standard")
 
-        # Einzelkosten summieren
-        materialkosten = material.get("materialkosten_gesamt", 0)
-        maschinenkosten = maschinen.get("maschinenkosten_gesamt", 0)
-        lohnkosten = lohn.get("lohnkosten_gesamt", 0)
-
-        herstellkosten = materialkosten + maschinenkosten + lohnkosten
-
-        # Fremdleistungen separat behandeln
+        # Fremdleistungen separat behandeln (Kosten + eigener Aufschlag, ohne GKZ/Gewinn)
         fremdleistungen = material.get("fremdleistungen", [])
         fremdleistungskosten = sum(
             fl.get("geschaetzte_kosten", 0) for fl in fremdleistungen
         )
+
+        # Einzelkosten summieren. materialkosten_gesamt des MaterialKalkulators enthaelt
+        # die Fremdleistungen bereits - hier nur das eigene Material, sonst zaehlt eine
+        # Lackierung doppelt (einmal mit GKZ/Gewinn, einmal als Fremdleistung).
+        if "materialliste" in material:
+            materialkosten = sum(m.get("gesamtkosten", 0) for m in material["materialliste"])
+        else:
+            materialkosten = material.get("materialkosten_gesamt", 0) - fremdleistungskosten
+        maschinenkosten = maschinen.get("maschinenkosten_gesamt", 0)
+        lohnkosten = lohn.get("lohnkosten_gesamt", 0)
+
+        herstellkosten = materialkosten + maschinenkosten + lohnkosten
 
         # Zuschläge berechnen
         gkz_satz = self._config.get("gemeinkosten_gkz", 0.25)
@@ -98,6 +103,7 @@ class ZuschlagKalkulator(BaseAgent):
                 fremdleistungszuschlag += fl.get("geschaetzte_kosten", 0) * fl_montage_satz
 
         # Fremdmontage prüfen
+        fremdmontage_kosten = 0.0
         if lohn.get("montage_plan", {}).get("fremdmontage_empfohlen", False):
             fremdmonteure = lohn["montage_plan"].get("fremdmonteure_anzahl", 0)
             # Geschätzte Fremdmontagekosten (wird manuell angepasst)
@@ -153,8 +159,81 @@ class ZuschlagKalkulator(BaseAgent):
                     "prozent": round(marge_prozent, 1),
                 },
                 "projekt_typ": projekt_typ,
+                "positionen_preise": self._positionspreise(
+                    material, maschinen, lohn,
+                    gkz_satz=gkz_satz, gewinn_satz=gewinn_satz, wagnis_satz=wagnis_satz,
+                    montage_satz=montage_satz if montage_basis > 0 else 0.0,
+                    fl_saetze={"lackierung": fl_lack_satz, "montage": fl_montage_satz},
+                    fremdmontage_kosten=fremdmontage_kosten,
+                ),
             },
         )
+
+    @staticmethod
+    def _positionspreise(
+        material: dict, maschinen: dict, lohn: dict, *,
+        gkz_satz: float, gewinn_satz: float, wagnis_satz: float, montage_satz: float,
+        fl_saetze: dict[str, float], fremdmontage_kosten: float,
+    ) -> list[dict[str, Any]]:
+        """Angebotspreis je Position nach denselben Regeln wie der Gesamtpreis.
+
+        Jede Position traegt ihre eigenen Herstellkosten mit GKZ, Gewinn, Wagnis und
+        Montagezuschlag; Fremdleistungen nur ihren eigenen Aufschlag. Fremdmontage
+        (projektweit) wird nach Montagestunden verteilt. Die Summe aller Positionen
+        entspricht damit dem Angebotspreis gesamt (bis auf Rundung).
+        """
+        pos: dict[str, dict[str, float]] = {}
+
+        def eintrag(nr: Any) -> dict[str, float]:
+            return pos.setdefault(str(nr), {
+                "material": 0.0, "maschinen": 0.0, "lohn": 0.0,
+                "fremdleistung": 0.0, "fl_zuschlag": 0.0, "montage_stunden": 0.0,
+            })
+
+        for m in material.get("materialliste", []):
+            eintrag(m.get("pos_nr", "?"))["material"] += m.get("gesamtkosten", 0)
+        for fl in material.get("fremdleistungen", []):
+            e = eintrag(fl.get("pos_nr", "?"))
+            kosten = fl.get("geschaetzte_kosten", 0)
+            e["fremdleistung"] += kosten
+            e["fl_zuschlag"] += kosten * fl_saetze.get(fl.get("typ", ""), 0.0)
+        for m in maschinen.get("maschineneinsaetze", []):
+            eintrag(m.get("pos_nr", "?"))["maschinen"] += m.get("kosten_gesamt", 0)
+        for lp in lohn.get("positionen", []):
+            e = eintrag(lp.get("pos_nr", "?"))
+            e["lohn"] += lp.get("kosten", 0)
+            e["montage_stunden"] += lp.get("montage_stunden", 0)
+
+        montage_summe = sum(e["montage_stunden"] for e in pos.values())
+        hk_summe = sum(e["material"] + e["maschinen"] + e["lohn"] for e in pos.values())
+        fl_montage_satz = fl_saetze.get("montage", 0.0)
+
+        ergebnis: list[dict[str, Any]] = []
+        for nr, e in pos.items():
+            hk = e["material"] + e["maschinen"] + e["lohn"]
+            selbstkosten = hk * (1 + gkz_satz)
+            if fremdmontage_kosten:
+                anteil = (e["montage_stunden"] / montage_summe if montage_summe
+                          else hk / hk_summe if hk_summe else 0.0)
+            else:
+                anteil = 0.0
+            fremdmontage = fremdmontage_kosten * anteil
+            angebot = (
+                selbstkosten * (1 + gewinn_satz + wagnis_satz)
+                + e["lohn"] * montage_satz
+                + e["fremdleistung"] + e["fl_zuschlag"]
+                + fremdmontage * (1 + fl_montage_satz)
+            )
+            ergebnis.append({
+                "pos_nr": nr,
+                "materialkosten": round(e["material"], 2),
+                "maschinenkosten": round(e["maschinen"], 2),
+                "lohnkosten": round(e["lohn"], 2),
+                "fremdleistungskosten": round(e["fremdleistung"] + fremdmontage, 2),
+                "herstellkosten": round(hk, 2),
+                "angebotspreis": angebot,
+            })
+        return ergebnis
 
     def _get_gewinn_satz(self, projekt_typ: str) -> float:
         """Gibt den passenden Gewinnaufschlag für den Projekttyp zurück."""
