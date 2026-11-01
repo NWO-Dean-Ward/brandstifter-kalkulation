@@ -88,7 +88,11 @@ projekte, positionen, materialpreise, maschineneinsaetze, lernhistorie, konfigur
 - Tests: `.venv/Scripts/python.exe -m pytest tests/ -v`
 - Server: `.venv/Scripts/python.exe -m uvicorn api.main:app --host 0.0.0.0 --port 8080`
 - Export-Cache: Rekonstruiert aus DB bei Cache-Miss (nach Server-Neustart)
-- Positions-Kosten: Kalkulations-Route schreibt EP/GP/Material/Maschinen/Lohn pro Position in DB zurueck
+- Positions-Kosten: Kalkulations-Route schreibt pro Position Material/Maschinen/Lohn/Fremdleistung (Herstellkosten-Anteile)
+  und EP/GP = Angebotspreis inkl. GKZ/Gewinn/Wagnis/Zuschlaegen (ZuschlagKalkulator.positionen_preise) in die DB
+- Summe EP x Menge = Angebotspreis (EP auf Cent gerundet, Angebotssumme = Summe GP); Export-Cache bekommt dieselben EP/GP
+- Lohn je Position nach eigenen Stunden (LohnKalkulator.positionen), Transport nach Montagestunden
+- Fremdleistung (Lackierung) nur einmal: Kosten + FL-Aufschlag, nicht in Herstellkosten mit GKZ/Gewinn
 - GAEB-Parser: Namespace-aware, collect_spans() für verschachtelte <span> Elemente
 - LLM-Router: qwen2.5-coder:14b primaer, gpt-oss:20b fuer Rechenlogik, Claude API fuer Lead/Lern
 - Frontend Dev: `cd frontend && npx vite` (Port 5173, Proxy auf 8080)
