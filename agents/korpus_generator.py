@@ -265,7 +265,7 @@ def pruefe_parameter(p: KorpusParameter, regeln: dict[str, Any]) -> list[str]:
     if p.qualitaet not in QUALITAETEN:
         fehler.append(f"Unbekannte Qualitaet '{p.qualitaet}' (erlaubt: {', '.join(QUALITAETEN)})")
 
-    bereich(p.anzahl, 1, 200, "Anzahl", "Stk")
+    bereich(p.anzahl, 1, 1000, "Anzahl", "Stk")
     bereich(p.breite_mm, 150, 3000, "Breite")
     bereich(p.hoehe_mm, 150, 3000, "Hoehe")
     bereich(p.tiefe_mm, 100, 1200, "Tiefe")

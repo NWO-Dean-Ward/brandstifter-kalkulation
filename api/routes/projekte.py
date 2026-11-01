@@ -202,14 +202,15 @@ async def kopiere_projekt(projekt_id: str):
                 """INSERT INTO positionen
                    (projekt_id, pos_nr, kurztext, langtext, menge, einheit, material,
                     platten_anzahl, kantenlaenge_lfm, schnittanzahl, bohrungen_anzahl,
-                    ist_lackierung)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    ist_lackierung, kalkulationsquelle, korpus_parameter)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
                     neues_id, pos["pos_nr"], pos["kurztext"], pos.get("langtext", ""),
                     pos["menge"], pos["einheit"], pos.get("material", ""),
                     pos.get("platten_anzahl", 0), pos.get("kantenlaenge_lfm", 0),
                     pos.get("schnittanzahl", 0), pos.get("bohrungen_anzahl", 0),
                     pos.get("ist_lackierung", 0),
+                    pos.get("kalkulationsquelle") or "", pos.get("korpus_parameter") or "",
                 ),
             )
 

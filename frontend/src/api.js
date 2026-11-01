@@ -42,6 +42,11 @@ export const positionen = {
     json(`/projekte/${projektId}/positionen/${posId}`, { method: 'PATCH', body: JSON.stringify(data) }),
   loeschen: (projektId, posId) =>
     request(`/projekte/${projektId}/positionen/${posId}`, { method: 'DELETE' }),
+  // parameter.anzahl = Korpusse je Positionseinheit
+  korpusSpeichern: (projektId, posId, parameter) =>
+    json(`/projekte/${projektId}/positionen/${posId}/korpus`, { method: 'PUT', body: JSON.stringify(parameter) }),
+  korpusEntfernen: (projektId, posId) =>
+    json(`/projekte/${projektId}/positionen/${posId}/korpus`, { method: 'DELETE' }),
 };
 
 // --- Kalkulation ---

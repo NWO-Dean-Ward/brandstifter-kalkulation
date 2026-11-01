@@ -64,11 +64,36 @@ class LeadAgent(BaseAgent):
         self, positionen: list[dict], projekt_typ: str, projekt_id: str,
         original_message: AgentMessage,
     ) -> AgentMessage:
-        """Fuehrt die Kalkulations-Pipeline aus: Material + Maschinen + Lohn -> Zuschlag."""
+        """Fuehrt die Kalkulations-Pipeline aus: Material + Maschinen + Lohn -> Zuschlag.
 
+        Korpus-Positionen (kalkulationsquelle = "korpus") rechnet der KorpusKalkulator;
+        sein Ergebnis wird in die Ergebnisse der drei Kalkulatoren eingefuegt.
+        """
+        korpus_positionen = [p for p in positionen if p.get("kalkulationsquelle") == "korpus"]
+        korpus_res: AgentMessage | None = None
+        standard_positionen = positionen
+        if korpus_positionen and "korpus_kalkulator" in self.subagenten:
+            korpus_res = await self._delegate("korpus_kalkulator", AgentMessage(
+                sender=self.name, receiver="korpus_kalkulator",
+                msg_type="kalkuliere_korpus", payload={"positionen": korpus_positionen},
+                projekt_id=projekt_id,
+            ))
+            if korpus_res.msg_type == "error":
+                return korpus_res
+            # Positionen mit ungueltigen Korpus-Parametern rechnet die Standard-Schaetzung
+            zurueck = set(korpus_res.payload.get("fehlgeschlagen", []))
+            standard_positionen = [
+                p for p in positionen
+                if p.get("kalkulationsquelle") != "korpus" or str(p.get("pos_nr")) in zurueck
+            ]
+
+        korpus = korpus_res.payload if korpus_res else {}
         kalk_payload = {
-            "positionen": positionen,
+            "positionen": standard_positionen,
             "projekt_typ": projekt_typ,
+            # Kapazitaeten (CNC-Schichten, Monteure, Transport) inkl. Korpus-Positionen
+            "zusatz_cnc_stunden": korpus.get("cnc_stunden_total", 0),
+            "zusatz_montage": korpus.get("montage", []),
         }
 
         # Parallel: Material, Maschinen, Lohn
@@ -99,6 +124,9 @@ class LeadAgent(BaseAgent):
             if res.msg_type == "error":
                 return res
 
+        if korpus:
+            self._fuege_korpus_ein(korpus, material_res.payload, maschinen_res.payload, lohn_res.payload)
+
         # Zuschlaege berechnen
         zuschlag_req = AgentMessage(
             sender=self.name, receiver="zuschlag_kalkulator",
@@ -123,6 +151,7 @@ class LeadAgent(BaseAgent):
         # Warnungen aus Subagenten sammeln
         for res in [material_res, maschinen_res, lohn_res]:
             warnungen.extend(res.payload.get("warnungen", []))
+        warnungen.extend(korpus.get("warnungen", []))
 
         # Gesamtergebnis
         gesamtergebnis = {
@@ -134,6 +163,7 @@ class LeadAgent(BaseAgent):
             "lohnkosten": lohn_res.payload,
             "zuschlaege": zuschlag_res.payload,
             "gesamtpreis": zuschlag_res.payload.get("angebotspreis_gesamt", 0),
+            "korpus_stuecklisten": korpus.get("stuecklisten", []),
             "warnungen": warnungen,
         }
 
@@ -202,6 +232,8 @@ class LeadAgent(BaseAgent):
                 "kantenlaenge_lfm": float(pos.get("kantenlaenge_lfm", 0)),
                 "schnittanzahl": int(pos.get("schnittanzahl", 0)),
                 "bohrungen_anzahl": int(pos.get("bohrungen_anzahl", 0)),
+                "kalkulationsquelle": pos.get("kalkulationsquelle") or "",
+                "korpus_parameter": pos.get("korpus_parameter") or "",
             })
 
         return await self._kalkuliere(normalisiert, projekt_typ, message.projekt_id, message)
@@ -225,6 +257,41 @@ class LeadAgent(BaseAgent):
     # ------------------------------------------------------------------
     # Hilfsmethoden
     # ------------------------------------------------------------------
+
+    @staticmethod
+    def _fuege_korpus_ein(korpus: dict, material: dict, maschinen: dict, lohn: dict) -> None:
+        """Fuegt das KorpusKalkulator-Ergebnis in die Ergebnisse der drei Kalkulatoren ein.
+
+        Kapazitaeten (CNC-Schichten, Monteure) haben die Kalkulatoren bereits mit den
+        Korpus-Stunden gerechnet; hier kommen nur Kosten, Listen und Stunden dazu.
+        """
+        material["materialliste"] = material.get("materialliste", []) + korpus["materialliste"]
+        material["materialkosten_gesamt"] = round(
+            material.get("materialkosten_gesamt", 0) + korpus["materialkosten_gesamt"], 2)
+
+        maschinen["maschineneinsaetze"] = maschinen.get("maschineneinsaetze", []) + korpus["maschineneinsaetze"]
+        maschinen["maschinenkosten_gesamt"] = round(
+            maschinen.get("maschinenkosten_gesamt", 0) + korpus["maschinenkosten_gesamt"], 2)
+        zeitplan = maschinen.setdefault("zeitplan", {})
+        zeitplan["cnc_stunden"] = round(zeitplan.get("cnc_stunden", 0) + korpus["cnc_stunden_total"], 2)
+
+        gewerke = lohn.setdefault("gewerke", {})
+        for name, werte in korpus["gewerke"].items():
+            g = gewerke.setdefault(name, {"stunden": 0.0, "kosten": 0.0})
+            g["stunden"] = round(g["stunden"] + werte["stunden"], 2)
+            g["kosten"] = round(g["kosten"] + werte["kosten"], 2)
+        lohn["lohnkosten_gesamt"] = round(lohn.get("lohnkosten_gesamt", 0) + korpus["lohnkosten_gesamt"], 2)
+
+        # Lohn je Position: Korpus-Positionen haben dort ggf. schon ihren Transport-Anteil
+        # (Montagestunden sind dort bereits enthalten, daher nicht doppelt addieren)
+        je_position = {p["pos_nr"]: p for p in lohn.setdefault("positionen", [])}
+        for kp in korpus["lohn_positionen"]:
+            vorhanden = je_position.get(kp["pos_nr"])
+            if vorhanden:
+                vorhanden["kosten"] += kp["kosten"]
+                vorhanden["stunden"] = round(vorhanden["stunden"] + kp["stunden"], 2)
+            else:
+                lohn["positionen"].append(dict(kp))
 
     async def _delegate(self, agent_name: str, message: AgentMessage) -> AgentMessage:
         """Delegiert eine Nachricht an einen registrierten Subagenten."""

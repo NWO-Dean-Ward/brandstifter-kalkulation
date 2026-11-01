@@ -52,6 +52,8 @@ class LohnKalkulator(BaseAgent):
         warnungen: list[str] = []
         montage_einheiten_total = 0.0
         hat_montage = False
+        # Stunden je Position (pos_nr -> [eigene Stunden, Montagestunden]) fuer die Preisaufteilung
+        pos_stunden: dict[str, list[float]] = {}
 
         for pos in positionen:
             menge = float(pos.get("menge", 0))
@@ -86,6 +88,21 @@ class LohnKalkulator(BaseAgent):
             if montage_stunden > 0:
                 hat_montage = True
 
+            eintrag = pos_stunden.setdefault(str(pos.get("pos_nr", "?")), [0.0, 0.0])
+            eintrag[0] += konstr_stunden + cnc_stunden + kanten_stunden + montage_stunden
+            eintrag[1] += montage_stunden
+
+        # Montage anderer Kalkulatoren (Korpus-Positionen): zaehlt fuer Monteurplanung und
+        # Transport mit; der eigene Lohn dieser Positionen kommt vom jeweiligen Kalkulator.
+        zusatz_montage_stunden = 0.0
+        for zusatz in message.payload.get("zusatz_montage", []):
+            stunden = float(zusatz.get("stunden", 0))
+            zusatz_montage_stunden += stunden
+            montage_einheiten_total += float(zusatz.get("einheiten", 0))
+            if stunden > 0:
+                hat_montage = True
+            pos_stunden.setdefault(str(zusatz.get("pos_nr", "?")), [0.0, 0.0])[1] += stunden
+
         # Transport:
         # - Pauschal basierend auf Gesamtmenge
         # - Beladung Werkstatt + Entladung Baustelle + Rueckfahrt
@@ -102,7 +119,7 @@ class LohnKalkulator(BaseAgent):
             lohnkosten_gesamt += gewerk_data["kosten"]
 
         # Montageplanung
-        montage_gesamt_stunden = gewerke["montage"]["stunden"]
+        montage_gesamt_stunden = round(gewerke["montage"]["stunden"] + zusatz_montage_stunden, 2)
         monteure_benoetigt = self._berechne_monteure(montage_gesamt_stunden)
 
         montage_plan: dict[str, Any] = {
@@ -135,9 +152,38 @@ class LohnKalkulator(BaseAgent):
                 "lohnkosten_gesamt": round(lohnkosten_gesamt, 2),
                 "stundensatz": stundensatz,
                 "montage_plan": montage_plan,
+                "positionen": self._verteile_auf_positionen(
+                    pos_stunden, gewerke["transport"]["stunden"], round(lohnkosten_gesamt, 2)
+                ),
                 "warnungen": warnungen,
             },
         )
+
+    @staticmethod
+    def _verteile_auf_positionen(
+        pos_stunden: dict[str, list[float]], transport_stunden: float, lohnkosten_gesamt: float,
+    ) -> list[dict[str, Any]]:
+        """Teilt die Lohnkosten nach den Stunden jeder Position auf.
+
+        Transport haengt an der Montage und wird nach Montagestunden verteilt.
+        Die Kosten werden aus dem (gerundeten) Gesamtbetrag verteilt, damit die
+        Summe der Positionen exakt den Lohnkosten entspricht.
+        """
+        montage_summe = sum(m for _, m in pos_stunden.values())
+        stunden: dict[str, float] = {}
+        for nr, (eigene, montage) in pos_stunden.items():
+            transport = transport_stunden * montage / montage_summe if montage_summe > 0 else 0.0
+            stunden[nr] = eigene + transport
+        stunden_summe = sum(stunden.values())
+        return [
+            {
+                "pos_nr": nr,
+                "stunden": round(h, 2),
+                "montage_stunden": round(pos_stunden[nr][1], 2),
+                "kosten": lohnkosten_gesamt * h / stunden_summe if stunden_summe > 0 else 0.0,
+            }
+            for nr, h in stunden.items()
+        ]
 
     def _berechne_monteure(self, montage_stunden: float) -> int:
         """Berechnet die benoetigte Anzahl Monteure.

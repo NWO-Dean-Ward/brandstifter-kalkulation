@@ -78,6 +78,8 @@ class PositionResponse(BaseModel):
     kantenlaenge_lfm: float
     schnittanzahl: int
     bohrungen_anzahl: int
+    kalkulationsquelle: str = ""  # '' = Standard-Schaetzung | korpus
+    korpus_parameter: str = ""  # JSON, siehe KorpusRequest (anzahl = je Positionseinheit)
 
 
 # --- Kalkulation ---
@@ -202,6 +204,7 @@ class WerkstueckResponse(BaseModel):
     hop_datei: str
     notizen: str
     erstellt_am: str
+    quelle: str = ""  # '' = manuell | korpus-generator
 
 
 # --- Zukaufteil ---

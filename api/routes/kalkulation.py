@@ -84,43 +84,39 @@ async def starte_kalkulation(projekt_id: str):
     if result.msg_type == "error":
         raise HTTPException(status_code=500, detail=result.payload.get("error", "Unbekannter Fehler"))
 
-    # Ergebnis im Export-Cache speichern
     p = result.payload
-    from api.routes.export import cache_kalkulation
-    cache_kalkulation(projekt_id, p)
-
     zuschlaege = p.get("zuschlaege", {})
 
-    # Positionskosten zurueckschreiben
-    mat_liste = p.get("materialkosten", {}).get("materialliste", [])
-    mas_liste = p.get("maschinenkosten", {}).get("maschineneinsaetze", [])
-    fl_liste = p.get("materialkosten", {}).get("fremdleistungen", [])
-    lohnkosten_gesamt = p.get("lohnkosten", {}).get("lohnkosten_gesamt", 0)
+    # Angebotspreise je Position (inkl. GKZ/Gewinn/Wagnis/Zuschlaege, Lohn nach eigenen Stunden).
+    # EP auf Cent gerundet, GP = EP x Menge - so rechnet auch der Auftraggeber aus der GAEB-Datei.
+    menge_je_nr = {str(pos.get("pos_nr", "")): float(pos.get("menge", 0)) for pos in positionen}
+    pos_preise: dict[str, dict] = {}
+    for pp in zuschlaege.get("positionen_preise", []):
+        nr = pp["pos_nr"]
+        menge = menge_je_nr.get(nr, 1) or 1
+        ep = round(pp["angebotspreis"] / menge, 2)
+        pos_preise[nr] = {**pp, "einheitspreis": ep, "gesamtpreis": round(ep * menge, 2)}
 
-    # Kosten pro pos_nr zusammenbauen
-    pos_kosten: dict[str, dict] = {}
-    positionen_raw = p.get("positionen", [])
+    # Angebotssumme = Summe der Positionen (Rundung je Position kann wenige Cent abweichen)
+    if pos_preise:
+        summe_gp = round(sum(pp["gesamtpreis"] for pp in pos_preise.values()), 2)
+        differenz = summe_gp - zuschlaege.get("angebotspreis_gesamt", 0)
+        zuschlaege["angebotspreis_gesamt"] = summe_gp
+        marge = zuschlaege.setdefault("marge", {"absolut": 0, "prozent": 0})
+        marge["absolut"] = round(marge.get("absolut", 0) + differenz, 2)
+        marge["prozent"] = round(marge["absolut"] / summe_gp * 100, 1) if summe_gp else 0
+        p["gesamtpreis"] = summe_gp
 
-    for m in mat_liste:
-        nr = m.get("pos_nr", "")
-        if nr:
-            pos_kosten.setdefault(nr, {})["materialkosten"] = m.get("gesamtkosten", 0)
-    for m in mas_liste:
-        nr = m.get("pos_nr", "")
-        if nr:
-            pos_kosten.setdefault(nr, {})["maschinenkosten"] = m.get("kosten_gesamt", 0)
-    for fl in fl_liste:
-        nr = fl.get("pos_nr", "")
-        if nr:
-            pos_kosten.setdefault(nr, {})["fremdleistungskosten"] = fl.get("geschaetzte_kosten", 0)
-
-    # Lohnkosten proportional aufteilen (Gewerke sind positionsuebergreifend)
-    n_pos = len(positionen_raw) or 1
-    lohn_pro_pos = lohnkosten_gesamt / n_pos
-    for pos in positionen_raw:
-        nr = pos.get("pos_nr", "")
-        if nr:
-            pos_kosten.setdefault(nr, {})["lohnkosten"] = round(lohn_pro_pos, 2)
+    # Export-Cache mit den Positionspreisen fuellen (PDF/GAEB lesen EP/GP aus dem Cache)
+    for pos in p.get("positionen", []):
+        preis = pos_preise.get(str(pos.get("pos_nr", "")))
+        if preis:
+            pos.update({k: preis[k] for k in (
+                "einheitspreis", "gesamtpreis", "materialkosten", "maschinenkosten",
+                "lohnkosten", "fremdleistungskosten",
+            )})
+    from api.routes.export import cache_kalkulation
+    cache_kalkulation(projekt_id, p)
 
     async with get_db() as db:
         # Projekt aktualisieren
@@ -138,31 +134,25 @@ async def starte_kalkulation(projekt_id: str):
             ),
         )
 
-        # Einzelne Positionen mit Kosten aktualisieren
-        for pos_nr, kosten in pos_kosten.items():
-            mat_k = kosten.get("materialkosten", 0)
-            mas_k = kosten.get("maschinenkosten", 0)
-            loh_k = kosten.get("lohnkosten", 0)
-            fl_k = kosten.get("fremdleistungskosten", 0)
-            gesamt = mat_k + mas_k + loh_k + fl_k
-
-            # Menge aus DB fuer EP-Berechnung
-            cursor = await db.execute(
-                "SELECT menge FROM positionen WHERE projekt_id = ? AND pos_nr = ?",
-                (projekt_id, pos_nr),
-            )
-            row = await cursor.fetchone()
-            menge = dict(row)["menge"] if row else 1
-            ep = gesamt / menge if menge > 0 else gesamt
-
+        # Einzelne Positionen: Kosten (Herstellkosten-Anteile) + Angebotspreise EP/GP
+        for pos_nr, preis in pos_preise.items():
             await db.execute(
                 """UPDATE positionen SET
                     materialkosten = ?, maschinenkosten = ?, lohnkosten = ?,
                     fremdleistungskosten = ?, einheitspreis = ?, gesamtpreis = ?
                    WHERE projekt_id = ? AND pos_nr = ?""",
-                (mat_k, mas_k, loh_k, fl_k, round(ep, 2), round(gesamt, 2),
+                (preis["materialkosten"], preis["maschinenkosten"], round(preis["lohnkosten"], 2),
+                 preis["fremdleistungskosten"], preis["einheitspreis"], preis["gesamtpreis"],
                  projekt_id, pos_nr),
             )
+
+        # Korpus-Positionen: Stueckliste als Werkstuecke ins Projekt (ersetzt die vorherige)
+        from api.routes.positionen import schreibe_korpus_werkstuecke
+        position_id_je_nr = {str(pos["pos_nr"]): pos["id"] for pos in positionen}
+        for stueckliste in p.get("korpus_stuecklisten", []):
+            position_id = position_id_je_nr.get(str(stueckliste["pos_nr"]))
+            if position_id is not None:
+                await schreibe_korpus_werkstuecke(db, projekt_id, position_id, stueckliste)
 
         await db.commit()
 
